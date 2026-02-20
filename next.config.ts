@@ -10,12 +10,8 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  workboxOptions: {
-    runtimeCaching,
-  },
-  fallbacks: {
-    document: "/~offline",
-  },
+  workboxOptions: { runtimeCaching },
+  fallbacks: { document: "/~offline" },
 });
 
 const nextConfig: NextConfig = {
