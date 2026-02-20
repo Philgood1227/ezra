@@ -10,7 +10,6 @@ const securityRuntimeCaching = [
   {
     urlPattern: /^\/api\/.*/,
     handler: "NetworkOnly" as const,
-    method: "GET" as const,
     options: { cacheName: "no-cache-auth" },
   },
   {
