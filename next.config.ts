@@ -6,6 +6,8 @@ const isProduction = process.env.NODE_ENV === "production";
 const customDistDir = process.env.NEXT_DIST_DIR?.trim();
 const contentSecurityPolicy =
   "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: wss:; worker-src 'self' blob:; manifest-src 'self';";
+const contentSecurityPolicyReportOnly =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: wss:; worker-src 'self' blob:; manifest-src 'self';";
 const securityRuntimeCaching = [
   {
     urlPattern: /^\/api\/.*/,
@@ -50,6 +52,10 @@ const nextConfig: NextConfig = {
       {
         key: "Content-Security-Policy",
         value: contentSecurityPolicy,
+      },
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: contentSecurityPolicyReportOnly,
       },
       {
         key: "X-Content-Type-Options",
