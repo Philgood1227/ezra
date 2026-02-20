@@ -1,26 +1,248 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  .pb-safe {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  .px-safe {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
+:root {
+  /* Backgrounds */
+  --color-bg-base: 248 250 252;
+  --color-bg-surface: 255 255 255;
+  --color-bg-surface-hover: 241 245 249;
+  --color-bg-elevated: 255 255 255;
+
+  /* Text */
+  --color-text-primary: 30 41 59;
+  --color-text-secondary: 100 116 139;
+  --color-text-muted: 148 163 184;
+  --color-text-inverse: 255 255 255;
+
+  /* Brand */
+  --color-primary: 99 102 241;
+  --color-primary-hover: 79 70 229;
+  --color-secondary: 16 185 129;
+  --color-accent-warm: 245 158 11;
+  --color-accent-soft: 236 72 153;
+
+  /* Status */
+  --color-success: 34 197 94;
+  --color-warning: 245 158 11;
+  --color-error: 239 68 68;
+  --color-info: 59 130 246;
+
+  /* Borders */
+  --color-border-default: 226 232 240;
+  --color-border-subtle: 241 245 249;
+
+  /* Task categories */
+  --color-cat-routine: 147 197 253;
+  --color-cat-ecole: 165 180 252;
+  --color-cat-repas: 110 231 183;
+  --color-cat-sport: 252 211 77;
+  --color-cat-loisir: 249 168 212;
+  --color-cat-calme: 196 181 253;
+  --color-cat-sommeil: 129 140 248;
+
+  /* Compatibility aliases for existing non-DS screens */
+  --color-brand-50: 238 242 255;
+  --color-brand-100: 224 231 255;
+  --color-brand-200: 199 210 254;
+  --color-brand-300: 165 180 252;
+  --color-brand-400: 129 140 248;
+  --color-brand-500: var(--color-primary);
+  --color-brand-600: var(--color-primary-hover);
+  --color-brand-700: 67 56 202;
+  --color-brand-800: 55 48 163;
+  --color-brand-900: 49 46 129;
+
+  --color-accent-50: 239 246 255;
+  --color-accent-100: 219 234 254;
+  --color-accent-200: 191 219 254;
+  --color-accent-300: 147 197 253;
+  --color-accent-400: 96 165 250;
+  --color-accent-500: 59 130 246;
+  --color-accent-600: 37 99 235;
+  --color-accent-700: 29 78 216;
+  --color-accent-800: 30 64 175;
+  --color-accent-900: 30 58 138;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  --shadow-card: 0 18px 38px -24px rgb(15 23 42 / 0.34);
+  --shadow-glass: 0 10px 34px -22px rgb(99 102 241 / 0.5);
+  --shadow-elevated: 0 24px 55px -28px rgb(15 23 42 / 0.56);
+
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --font-ui: var(--font-lexend);
+  --font-reading: var(--font-atkinson);
+}
+
+.dark {
+  --color-bg-base: 15 23 42;
+  --color-bg-surface: 30 41 59;
+  --color-bg-surface-hover: 51 65 85;
+  --color-bg-elevated: 51 65 85;
+
+  --color-text-primary: 241 245 249;
+  --color-text-secondary: 148 163 184;
+  --color-text-muted: 100 116 139;
+  --color-text-inverse: 15 23 42;
+
+  --color-primary: 129 140 248;
+  --color-primary-hover: 165 180 252;
+  --color-secondary: 52 211 153;
+  --color-accent-warm: 251 191 36;
+  --color-accent-soft: 244 114 182;
+
+  --color-success: 74 222 128;
+  --color-warning: 251 191 36;
+  --color-error: 248 113 113;
+  --color-info: 96 165 250;
+
+  --color-border-default: 51 65 85;
+  --color-border-subtle: 30 41 59;
+
+  --color-cat-routine: 96 165 250;
+  --color-cat-ecole: 129 140 248;
+  --color-cat-repas: 52 211 153;
+  --color-cat-sport: 251 191 36;
+  --color-cat-loisir: 244 114 182;
+  --color-cat-calme: 167 139 250;
+  --color-cat-sommeil: 99 102 241;
+
+  --color-brand-50: 49 46 129;
+  --color-brand-100: 55 48 163;
+  --color-brand-200: 67 56 202;
+  --color-brand-300: 79 70 229;
+  --color-brand-400: 99 102 241;
+  --color-brand-500: var(--color-primary);
+  --color-brand-600: var(--color-primary-hover);
+  --color-brand-700: 199 210 254;
+  --color-brand-800: 224 231 255;
+  --color-brand-900: 238 242 255;
+
+  --color-accent-50: 23 37 84;
+  --color-accent-100: 30 58 138;
+  --color-accent-200: 30 64 175;
+  --color-accent-300: 29 78 216;
+  --color-accent-400: 37 99 235;
+  --color-accent-500: 59 130 246;
+  --color-accent-600: 96 165 250;
+  --color-accent-700: 147 197 253;
+  --color-accent-800: 191 219 254;
+  --color-accent-900: 219 234 254;
+
+  --shadow-card: 0 20px 44px -26px rgb(2 6 23 / 0.82);
+  --shadow-glass: 0 16px 40px -30px rgb(129 140 248 / 0.52);
+  --shadow-elevated: 0 30px 70px -34px rgb(2 6 23 / 0.88);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-bg-base font-sans text-text-primary;
+  font-family: var(--font-ui);
+  background-image: theme("backgroundImage.hero-soft");
+  background-attachment: fixed;
+}
+
+.reading {
+  font-family: var(--font-reading);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 0.75rem;
+  z-index: 60;
+  transform: translateY(-180%);
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--color-border-default));
+  background-color: rgb(var(--color-bg-surface));
+  color: rgb(var(--color-text-primary));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-elevated);
+  transition: transform var(--motion-fast);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:where(a, button, input, textarea, select, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid rgb(var(--color-primary));
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

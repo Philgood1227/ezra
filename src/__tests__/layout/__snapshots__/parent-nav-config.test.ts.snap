@@ -1,0 +1,125 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parentNavSections > conserve la structure de navigation parent 1`] = `
+{
+  "footer": [
+    {
+      "href": "/parent/settings",
+      "icon": "SettingsIcon",
+      "id": "settings",
+      "label": "Paramètres",
+    },
+  ],
+  "sections": [
+    {
+      "id": "dashboard",
+      "items": [
+        {
+          "href": "/parent/dashboard",
+          "icon": "DashboardIcon",
+          "id": "dashboard",
+          "label": "Tableau de bord",
+        },
+        {
+          "badgeKey": "notifications",
+          "href": "/parent/notifications",
+          "icon": "BellIcon",
+          "id": "notifications",
+          "label": "Notifications",
+        },
+        {
+          "badgeKey": "alarms",
+          "href": "/parent/alarms",
+          "icon": "AlarmIcon",
+          "id": "alarms",
+          "label": "Alarmes",
+        },
+      ],
+      "label": "Tableau de bord",
+    },
+    {
+      "id": "organization",
+      "items": [
+        {
+          "href": "/parent/day-templates",
+          "icon": "TemplateIcon",
+          "id": "day-templates",
+          "label": "Journées types",
+        },
+        {
+          "href": "/parent/categories",
+          "icon": "TagsIcon",
+          "id": "categories",
+          "label": "Catégories",
+        },
+        {
+          "badgeKey": "schoolDiary",
+          "href": "/parent/school-diary",
+          "icon": "NotebookIcon",
+          "id": "school-diary",
+          "label": "Carnet scolaire",
+        },
+        {
+          "badgeKey": "checklists",
+          "href": "/parent/checklists",
+          "icon": "ChecklistIcon",
+          "id": "checklists",
+          "label": "Checklists",
+        },
+        {
+          "href": "/parent/meals",
+          "icon": "MealIcon",
+          "id": "meals",
+          "label": "Repas",
+        },
+        {
+          "href": "/parent/knowledge",
+          "icon": "KnowledgeIcon",
+          "id": "knowledge",
+          "label": "Connaissances",
+        },
+      ],
+      "label": "Organisation",
+    },
+    {
+      "id": "family-motivation",
+      "items": [
+        {
+          "href": "/parent/achievements",
+          "icon": "BadgeIcon",
+          "id": "achievements",
+          "label": "Succès & badges",
+        },
+        {
+          "href": "/parent/rewards",
+          "icon": "RewardIcon",
+          "id": "rewards",
+          "label": "Récompenses",
+        },
+        {
+          "href": "/parent/gamification",
+          "icon": "ChartIcon",
+          "id": "gamification",
+          "label": "Gamification",
+        },
+        {
+          "href": "/parent/cinema",
+          "icon": "CinemaIcon",
+          "id": "cinema",
+          "label": "Cinéma",
+        },
+        {
+          "href": "/parent/dashboard#emotions",
+          "icon": "HeartIcon",
+          "id": "emotions",
+          "label": "Émotions",
+          "matchPrefixes": [
+            "/parent/dashboard",
+          ],
+        },
+      ],
+      "label": "Vie familiale & Motivation",
+    },
+  ],
+}
+`;

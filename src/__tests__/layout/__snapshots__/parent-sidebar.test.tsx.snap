@@ -1,0 +1,1450 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ParentSidebar > rend les variantes depliee et repliee > collapsed 1`] = `
+<DocumentFragment>
+  <aside
+    class="hidden border-r border-border-subtle bg-bg-elevated md:block w-20"
+  >
+    <div
+      class="flex h-full flex-col"
+    >
+      <div
+        class="border-b border-border-subtle p-3"
+      >
+        <div
+          class="flex items-center justify-center"
+        >
+          <a
+            class="rounded-radius-button px-2 py-1.5 text-left transition-colors duration-200 hover:bg-bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            href="/parent/dashboard"
+            title="Ezra — Parent"
+          >
+            <p
+              class="font-display font-black tracking-tight text-text-primary text-base"
+            >
+              EP
+            </p>
+            <p
+              class="text-xs text-text-secondary sr-only"
+            >
+              Parent Demo
+            </p>
+          </a>
+          <div
+            class="inline-flex"
+            tabindex="0"
+          >
+            <button
+              aria-label="Déplier la navigation"
+              class="items-center justify-center gap-2 rounded-radius-button font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:pointer-events-none disabled:opacity-55 bg-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary h-touch-sm px-3.5 text-sm hidden lg:inline-flex"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-4 transition-transform duration-200 rotate-180"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="m9 6 6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <nav
+        aria-label="Navigation principale parent"
+        class="flex-1 space-y-4 overflow-y-auto px-2 py-3"
+      >
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted sr-only"
+          >
+            Tableau de bord
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              aria-current="page"
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-brand-primary bg-brand-primary/10 text-brand-primary justify-center px-2"
+              href="/parent/dashboard"
+              title="Tableau de bord"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="currentColor"
+                  height="7.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="3.5"
+                  y="3.5"
+                />
+                <rect
+                  fill="currentColor"
+                  height="5.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="13"
+                  y="3.5"
+                />
+                <rect
+                  fill="currentColor"
+                  height="9.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="13"
+                  y="11"
+                />
+                <rect
+                  fill="currentColor"
+                  height="7.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="3.5"
+                  y="13"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Tableau de bord
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/notifications"
+              title="Notifications"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M7.5 16.5h9a2 2 0 0 0 1.5-3.3c-.8-.9-1.1-2-1.1-3.2V9a4.9 4.9 0 1 0-9.8 0v1c0 1.2-.4 2.3-1.1 3.2a2 2 0 0 0 1.5 3.3Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M10 18.5a2 2 0 0 0 4 0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Notifications
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/alarms"
+              title="Alarmes"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="13"
+                  fill="none"
+                  r="6.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M12 10v3.2l2 1.6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+                <path
+                  d="m5.2 4.6 2 1.9M18.8 4.6l-2 1.9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Alarmes
+              </span>
+            </a>
+          </div>
+        </section>
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted sr-only"
+          >
+            Organisation
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/day-templates"
+              title="Journées types"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="16"
+                  rx="3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="16"
+                  x="4"
+                  y="4"
+                />
+                <path
+                  d="M8 9h8M8 12h8M8 15h6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Journées types
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/categories"
+              title="Catégories"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 9.5V5.5h4l9.5 9.5-4 4L4 9.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <circle
+                  cx="8"
+                  cy="8"
+                  fill="currentColor"
+                  r="1"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Catégories
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/school-diary"
+              title="Carnet scolaire"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="17"
+                  rx="2.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="14"
+                  x="5"
+                  y="3.5"
+                />
+                <path
+                  d="M9 7.5h6M9 10.5h6M9 13.5h4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Carnet scolaire
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/checklists"
+              title="Checklists"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="15"
+                  rx="3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="15"
+                  x="4.5"
+                  y="4.5"
+                />
+                <path
+                  d="m8.3 11.6 1.8 1.8 4.1-4.1M8.3 15.1h7.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Checklists
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/meals"
+              title="Repas"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6.5 4.5v6M8.5 4.5v6M10.5 4.5v6M8.5 10.5v9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M15.5 4.5v15M15.5 4.5c2.2 0 4 1.8 4 4v2.2h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Repas
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/knowledge"
+              title="Connaissances"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M5.5 5.5A2.5 2.5 0 0 1 8 3h4v18H8a2.5 2.5 0 0 1-2.5-2.5v-13Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M18.5 5.5A2.5 2.5 0 0 0 16 3h-4v18h4a2.5 2.5 0 0 0 2.5-2.5v-13Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Connaissances
+              </span>
+            </a>
+          </div>
+        </section>
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted sr-only"
+          >
+            Vie familiale & Motivation
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/achievements"
+              title="Succès & badges"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="10"
+                  fill="none"
+                  r="5.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M8.5 15.5 7 20l5-2.7L17 20l-1.5-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Succès & badges
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/rewards"
+              title="Récompenses"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V11H4V8.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M5.5 11v2.5A3.5 3.5 0 0 0 9 17h6a3.5 3.5 0 0 0 3.5-3.5V11M12 6v11"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Récompenses
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/gamification"
+              title="Gamification"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4.5 19.5h15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+                <rect
+                  fill="none"
+                  height="6.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="6.5"
+                  y="11"
+                />
+                <rect
+                  fill="none"
+                  height="9.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="10.9"
+                  y="8"
+                />
+                <rect
+                  fill="none"
+                  height="12.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="15.3"
+                  y="5"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Gamification
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+              href="/parent/cinema"
+              title="Cinéma"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="12"
+                  rx="2.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="16"
+                  x="4"
+                  y="6"
+                />
+                <path
+                  d="m10 9 5 3-5 3Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Cinéma
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              aria-current="page"
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-brand-primary bg-brand-primary/10 text-brand-primary justify-center px-2"
+              href="/parent/dashboard#emotions"
+              title="Émotions"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 20.2 5.4 13.8a4.5 4.5 0 0 1 6.4-6.4L12 8l.2-.6a4.5 4.5 0 0 1 6.4 6.4L12 20.2Z"
+                  fill="currentColor"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="sr-only"
+              >
+                Émotions
+              </span>
+            </a>
+          </div>
+        </section>
+      </nav>
+      <footer
+        class="space-y-2 border-t border-border-subtle px-2 py-3"
+      >
+        <div
+          class="block"
+          tabindex="0"
+        >
+          <a
+            class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary justify-center px-2"
+            href="/parent/settings"
+            title="Paramètres"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5 shrink-0"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M19.5 13.5v-3l-2-.5a6.9 6.9 0 0 0-.8-1.8l1.1-1.7-2.1-2.1-1.7 1.1c-.6-.3-1.2-.6-1.8-.8l-.5-2h-3l-.5 2c-.6.2-1.2.5-1.8.8L4.7 4.4 2.6 6.5l1.1 1.7c-.3.6-.6 1.2-.8 1.8l-2 .5v3l2 .5c.2.6.5 1.2.8 1.8l-1.1 1.7 2.1 2.1 1.7-1.1c.6.3 1.2.6 1.8.8l.5 2h3l.5-2c.6-.2 1.2-.5 1.8-.8l1.7 1.1 2.1-2.1-1.1-1.7c.3-.6.6-1.2.8-1.8l2-.5Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+              />
+            </svg>
+            <span
+              class="sr-only"
+            >
+              Paramètres
+            </span>
+          </a>
+        </div>
+        <div
+          class="block"
+          tabindex="0"
+        >
+          <button
+            class="flex h-touch-lg w-full items-center rounded-radius-button border-l-4 border-l-transparent text-sm font-semibold text-text-secondary transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary hover:bg-bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-60 justify-center px-2"
+            title="Déconnexion"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M10 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H10"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.8"
+              />
+              <path
+                d="m14 8 4 4-4 4M8 12h10"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.8"
+              />
+            </svg>
+            <span
+              class="sr-only"
+            >
+              Déconnexion
+            </span>
+          </button>
+        </div>
+      </footer>
+    </div>
+  </aside>
+</DocumentFragment>
+`;
+
+exports[`ParentSidebar > rend les variantes depliee et repliee > expanded 1`] = `
+<DocumentFragment>
+  <aside
+    class="hidden border-r border-border-subtle bg-bg-elevated md:block w-[260px]"
+  >
+    <div
+      class="flex h-full flex-col"
+    >
+      <div
+        class="border-b border-border-subtle p-3"
+      >
+        <div
+          class="flex items-center justify-between gap-2"
+        >
+          <a
+            class="rounded-radius-button px-2 py-1.5 text-left transition-colors duration-200 hover:bg-bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            href="/parent/dashboard"
+          >
+            <p
+              class="font-display font-black tracking-tight text-text-primary text-lg"
+            >
+              Ezra — Parent
+            </p>
+            <p
+              class="text-xs text-text-secondary block"
+            >
+              Parent Demo
+            </p>
+          </a>
+          <div
+            class="inline-flex"
+            tabindex="0"
+          >
+            <button
+              aria-label="Replier la navigation"
+              class="items-center justify-center gap-2 rounded-radius-button font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:pointer-events-none disabled:opacity-55 bg-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary h-touch-sm px-3.5 text-sm inline-flex"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-4 transition-transform duration-200"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="m9 6 6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <nav
+        aria-label="Navigation principale parent"
+        class="flex-1 space-y-4 overflow-y-auto px-2 py-3"
+      >
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted block"
+          >
+            Tableau de bord
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              aria-current="page"
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-brand-primary bg-brand-primary/10 text-brand-primary gap-3"
+              href="/parent/dashboard"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="currentColor"
+                  height="7.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="3.5"
+                  y="3.5"
+                />
+                <rect
+                  fill="currentColor"
+                  height="5.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="13"
+                  y="3.5"
+                />
+                <rect
+                  fill="currentColor"
+                  height="9.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="13"
+                  y="11"
+                />
+                <rect
+                  fill="currentColor"
+                  height="7.5"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="7.5"
+                  x="3.5"
+                  y="13"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Tableau de bord
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/notifications"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M7.5 16.5h9a2 2 0 0 0 1.5-3.3c-.8-.9-1.1-2-1.1-3.2V9a4.9 4.9 0 1 0-9.8 0v1c0 1.2-.4 2.3-1.1 3.2a2 2 0 0 0 1.5 3.3Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M10 18.5a2 2 0 0 0 4 0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Notifications
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/alarms"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="13"
+                  fill="none"
+                  r="6.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M12 10v3.2l2 1.6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+                <path
+                  d="m5.2 4.6 2 1.9M18.8 4.6l-2 1.9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Alarmes
+              </span>
+            </a>
+          </div>
+        </section>
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted block"
+          >
+            Organisation
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/day-templates"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="16"
+                  rx="3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="16"
+                  x="4"
+                  y="4"
+                />
+                <path
+                  d="M8 9h8M8 12h8M8 15h6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Journées types
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/categories"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 9.5V5.5h4l9.5 9.5-4 4L4 9.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+                <circle
+                  cx="8"
+                  cy="8"
+                  fill="currentColor"
+                  r="1"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Catégories
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/school-diary"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="17"
+                  rx="2.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="14"
+                  x="5"
+                  y="3.5"
+                />
+                <path
+                  d="M9 7.5h6M9 10.5h6M9 13.5h4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Carnet scolaire
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/checklists"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="15"
+                  rx="3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="15"
+                  x="4.5"
+                  y="4.5"
+                />
+                <path
+                  d="m8.3 11.6 1.8 1.8 4.1-4.1M8.3 15.1h7.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.7"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Checklists
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/meals"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6.5 4.5v6M8.5 4.5v6M10.5 4.5v6M8.5 10.5v9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M15.5 4.5v15M15.5 4.5c2.2 0 4 1.8 4 4v2.2h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Repas
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/knowledge"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M5.5 5.5A2.5 2.5 0 0 1 8 3h4v18H8a2.5 2.5 0 0 1-2.5-2.5v-13Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M18.5 5.5A2.5 2.5 0 0 0 16 3h-4v18h4a2.5 2.5 0 0 0 2.5-2.5v-13Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Connaissances
+              </span>
+            </a>
+          </div>
+        </section>
+        <section
+          class="space-y-1"
+        >
+          <p
+            class="px-2 text-xs font-semibold uppercase tracking-wide text-text-muted block"
+          >
+            Vie familiale & Motivation
+          </p>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/achievements"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  cx="12"
+                  cy="10"
+                  fill="none"
+                  r="5.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M8.5 15.5 7 20l5-2.7L17 20l-1.5-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Succès & badges
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/rewards"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V11H4V8.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="M5.5 11v2.5A3.5 3.5 0 0 0 9 17h6a3.5 3.5 0 0 0 3.5-3.5V11M12 6v11"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Récompenses
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/gamification"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4.5 19.5h15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-width="1.8"
+                />
+                <rect
+                  fill="none"
+                  height="6.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="6.5"
+                  y="11"
+                />
+                <rect
+                  fill="none"
+                  height="9.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="10.9"
+                  y="8"
+                />
+                <rect
+                  fill="none"
+                  height="12.5"
+                  rx="1"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="2.8"
+                  x="15.3"
+                  y="5"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Gamification
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+              href="/parent/cinema"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  fill="none"
+                  height="12"
+                  rx="2.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  width="16"
+                  x="4"
+                  y="6"
+                />
+                <path
+                  d="m10 9 5 3-5 3Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Cinéma
+              </span>
+            </a>
+          </div>
+          <div
+            class="block"
+            tabindex="0"
+          >
+            <a
+              aria-current="page"
+              class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-brand-primary bg-brand-primary/10 text-brand-primary gap-3"
+              href="/parent/dashboard#emotions"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 20.2 5.4 13.8a4.5 4.5 0 0 1 6.4-6.4L12 8l.2-.6a4.5 4.5 0 0 1 6.4 6.4L12 20.2Z"
+                  fill="currentColor"
+                  stroke="currentColor"
+                  stroke-linejoin="round"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <span
+                class="truncate"
+              >
+                Émotions
+              </span>
+            </a>
+          </div>
+        </section>
+      </nav>
+      <footer
+        class="space-y-2 border-t border-border-subtle px-2 py-3"
+      >
+        <div
+          class="block"
+          tabindex="0"
+        >
+          <a
+            class="relative flex h-touch-lg items-center rounded-radius-button border-l-4 px-3 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary border-l-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary gap-3"
+            href="/parent/settings"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5 shrink-0"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M19.5 13.5v-3l-2-.5a6.9 6.9 0 0 0-.8-1.8l1.1-1.7-2.1-2.1-1.7 1.1c-.6-.3-1.2-.6-1.8-.8l-.5-2h-3l-.5 2c-.6.2-1.2.5-1.8.8L4.7 4.4 2.6 6.5l1.1 1.7c-.3.6-.6 1.2-.8 1.8l-2 .5v3l2 .5c.2.6.5 1.2.8 1.8l-1.1 1.7 2.1 2.1 1.7-1.1c.6.3 1.2.6 1.8.8l.5 2h3l.5-2c.6-.2 1.2-.5 1.8-.8l1.7 1.1 2.1-2.1-1.1-1.7c.3-.6.6-1.2.8-1.8l2-.5Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+              />
+            </svg>
+            <span
+              class="truncate"
+            >
+              Paramètres
+            </span>
+          </a>
+        </div>
+        <div
+          class="block"
+          tabindex="0"
+        >
+          <button
+            class="flex h-touch-lg w-full items-center rounded-radius-button border-l-4 border-l-transparent px-3 text-sm font-semibold text-text-secondary transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary hover:bg-bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-60 gap-3"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M10 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H10"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.8"
+              />
+              <path
+                d="m14 8 4 4-4 4M8 12h10"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.8"
+              />
+            </svg>
+            <span
+              class="block"
+            >
+              Déconnexion
+            </span>
+          </button>
+        </div>
+      </footer>
+    </div>
+  </aside>
+</DocumentFragment>
+`;

@@ -12,10 +12,17 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
+/public/sw.js
+/public/workbox-*.js
+/public/fallback-*.js
+/public/swe-worker-*.js
 
 # production
 /build
@@ -23,6 +30,7 @@
 # misc
 .DS_Store
 *.pem
+/.tmp/
 
 # debug
 npm-debug.log*
@@ -35,6 +43,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# storybook
+/storybook-static
 
 # typescript
 *.tsbuildinfo
