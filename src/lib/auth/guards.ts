@@ -3,26 +3,18 @@ import { getCurrentProfile } from "@/lib/auth/current-profile";
 
 export async function requireParent() {
   const context = await getCurrentProfile();
-  if (context.role === "parent" || context.role === "viewer") {
-    return context;
+  if (context.role !== "parent" && context.role !== "viewer") {
+    redirect("/auth/login");
   }
-
-  return {
-    ...context,
-    role: "parent" as const,
-  };
+  return context;
 }
 
 export async function requireChild() {
   const context = await getCurrentProfile();
-  if (context.role === "child") {
-    return context;
+  if (context.role !== "child") {
+    redirect("/auth/pin");
   }
-
-  return {
-    ...context,
-    role: "child" as const,
-  };
+  return context;
 }
 
 export async function redirectIfAuthenticated() {
