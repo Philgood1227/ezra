@@ -17,6 +17,8 @@
 
 # next.js
 /.next/
+/.next_*/
+/.next-*/
 /.next-e2e/
 /out/
 /public/sw.js
