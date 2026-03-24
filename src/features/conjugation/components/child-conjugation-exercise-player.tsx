@@ -120,7 +120,7 @@ export function ChildConjugationExercisePlayer({
         </div>
         <h1 className="text-2xl font-black text-text-primary">{item.exercise.title}</h1>
         <p className="text-sm text-text-secondary">
-          Lis chaque question puis clique sur "Terminer et envoyer a Papa/Maman".
+          Lis chaque question puis clique sur &quot;Terminer et envoyer a Papa/Maman&quot;.
         </p>
       </header>
 

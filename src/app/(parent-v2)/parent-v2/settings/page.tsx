@@ -22,7 +22,7 @@ export default async function ParentV2SettingsPage(): Promise<React.JSX.Element>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-text-secondary">
           <p>
-            Administrez ici les categories, icones et routines utilisees dans Missions d'ecole,
+            Administrez ici les categories, icones et routines utilisees dans Missions d&apos;ecole,
             Activites plaisir, Journees types et Checklists.
           </p>
         </CardContent>

@@ -807,7 +807,7 @@ export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.
               <label htmlFor="reward-unlocked" className={modalLabelClass}>
                 Recompense deverrouillee
               </label>
-              <p className="mt-1 text-xs text-gray-600">L'enfant peut la voir et l'acheter</p>
+              <p className="mt-1 text-xs text-gray-600">L&apos;enfant peut la voir et l&apos;acheter</p>
             </div>
             <button
               id="reward-unlocked"
@@ -944,9 +944,9 @@ export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.
             <ul className="space-y-1 text-sm text-gray-700">
               <li>• Variez les types de recompenses (ecran, activites, privileges)</li>
               <li>• Ajustez les couts en fonction de la difficulte</li>
-              <li>• Impliquez l'enfant dans le choix des recompenses</li>
+              <li>• Impliquez l&apos;enfant dans le choix des recompenses</li>
               <li>• Privilegiez les recompenses non materielles</li>
-              <li>• Creez des recompenses "mystere" pour la motivation</li>
+              <li>• Creez des recompenses &quot;mystere&quot; pour la motivation</li>
             </ul>
           </div>
         </div>

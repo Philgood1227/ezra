@@ -851,7 +851,7 @@ export function ParentConjugationManager({
 
   function renderResultSummary(stats: ConjugationExerciseParentStats | undefined): React.JSX.Element {
     if (!stats || stats.attemptsCount === 0 || !stats.latestAttempt) {
-      return <p className="text-xs text-text-secondary">Aucun resultat pour l'instant.</p>;
+      return <p className="text-xs text-text-secondary">Aucun resultat pour l&apos;instant.</p>;
     }
 
     return (
@@ -899,7 +899,7 @@ export function ParentConjugationManager({
           </p>
           <h1 className="text-2xl font-black text-text-primary sm:text-3xl">Conjugaison</h1>
           <p className="text-sm text-text-secondary">
-            Gere les fiches de temps, cree des exercices et suis les resultats d'Ezra.
+            Gere les fiches de temps, cree des exercices et suis les resultats d&apos;Ezra.
           </p>
         </header>
 
@@ -1139,7 +1139,7 @@ export function ParentConjugationManager({
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-text-primary">Titre de l'exercice</p>
+              <p className="text-sm font-semibold text-text-primary">Titre de l&apos;exercice</p>
               <Input
                 value={draft.title}
                 onChange={(event) =>
@@ -1169,7 +1169,7 @@ export function ParentConjugationManager({
             <Card className="border-border-subtle bg-bg-surface-hover/55">
               <CardContent className="space-y-3 p-4">
                 <p className="text-sm text-text-secondary">
-                  Generation automatique selon le temps selectionne et le niveau d'Ezra.
+                  Generation automatique selon le temps selectionne et le niveau d&apos;Ezra.
                 </p>
                 <div className="grid gap-3 sm:grid-cols-[180px_auto] sm:items-end">
                   <div className="space-y-1">
@@ -1186,7 +1186,7 @@ export function ParentConjugationManager({
                     />
                   </div>
                   <Button type="button" variant="secondary" onClick={() => void generateDraftWithAI()} loading={isGenerating}>
-                    Generer avec l'IA
+                    Generer avec l&apos;IA
                   </Button>
                 </div>
               </CardContent>
@@ -1220,7 +1220,7 @@ export function ParentConjugationManager({
                     />
                   </div>
                   <Button type="button" variant="secondary" onClick={() => void importDraftWithAI()} loading={isGenerating}>
-                    Importer avec l'IA
+                    Importer avec l&apos;IA
                   </Button>
                 </div>
               </CardContent>
@@ -1483,7 +1483,7 @@ export function ParentConjugationManager({
               Annuler
             </Button>
             <Button type="button" variant="primary" onClick={saveExerciseDraftFromModal} loading={isPending}>
-              Enregistrer l'exercice
+              Enregistrer l&apos;exercice
             </Button>
           </div>
         </div>

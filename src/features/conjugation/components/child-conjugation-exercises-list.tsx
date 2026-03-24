@@ -96,7 +96,7 @@ export function ChildConjugationExercisesList({
           <CardContent className="space-y-2 p-4">
             <p className="text-sm font-semibold text-text-primary">Aucun exercice disponible</p>
             <p className="text-sm text-text-secondary">
-              Papa/Maman n'a pas encore publie d'exercice pour ce filtre.
+              Papa/Maman n&apos;a pas encore publie d&apos;exercice pour ce filtre.
             </p>
           </CardContent>
         </Card>
@@ -128,7 +128,7 @@ export function ChildConjugationExercisesList({
                   href={`/child/conjugaison/exercises/${item.exercise.id}`}
                   className="inline-flex h-touch-md items-center justify-center rounded-radius-button border border-border-default bg-bg-elevated px-4 text-sm font-semibold text-text-primary transition-colors duration-200 hover:bg-bg-surface-hover"
                 >
-                  Ouvrir l'exercice
+                  Ouvrir l&apos;exercice
                 </Link>
               </CardContent>
             </Card>
