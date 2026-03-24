@@ -9,6 +9,7 @@ import type {
   TaskInstanceSummary,
   TemplateTaskSummary,
 } from "@/lib/day-templates/types";
+import { resolveTaskInstructionsHtml } from "@/lib/day-templates/instructions";
 import { sortTemplateTasks } from "@/lib/day-templates/timeline";
 
 interface DemoTaskInstanceRecord {
@@ -27,6 +28,7 @@ interface DemoTaskInstanceRecord {
   pointsEarned: number;
   title: string;
   description: string | null;
+  instructionsHtml?: string | null;
   sortOrder: number;
   categoryId: string;
   knowledgeCardId?: string | null;
@@ -50,10 +52,21 @@ interface DemoRewardTierRecord {
   sortOrder: number;
 }
 
+interface DemoRewardClaimRecord {
+  id: string;
+  familyId: string;
+  childProfileId: string;
+  rewardTierId: string;
+  pointsSpent: number;
+  claimDate: string;
+  claimedAt: string;
+}
+
 interface DemoGamificationStore {
   instances: DemoTaskInstanceRecord[];
   dailyPoints: DemoDailyPointsRecord[];
   rewardTiers: DemoRewardTierRecord[];
+  rewardClaims: DemoRewardClaimRecord[];
 }
 
 type StoresByFamily = Record<string, DemoGamificationStore>;
@@ -120,8 +133,14 @@ function getStore(familyId: string): DemoGamificationStore {
       instances: [],
       dailyPoints: [],
       rewardTiers: [],
+      rewardClaims: [],
     };
     stores.set(familyId, store);
+    persistStoresToDisk();
+  }
+
+  if (!Array.isArray(store.rewardClaims)) {
+    store.rewardClaims = [];
     persistStoresToDisk();
   }
 
@@ -203,6 +222,7 @@ export function ensureDemoTaskInstancesForDate({
       pointsEarned: 0,
       title: task.title,
       description: task.description,
+      instructionsHtml: task.instructionsHtml ?? null,
       sortOrder: task.sortOrder,
       categoryId: task.categoryId,
       knowledgeCardId: task.knowledgeCardId ?? null,
@@ -252,6 +272,10 @@ export function listDemoTaskInstances(
         pointsEarned: entry.pointsEarned,
         title: entry.title,
         description: entry.description,
+        instructionsHtml: resolveTaskInstructionsHtml({
+          instructionsHtml: entry.instructionsHtml,
+          description: entry.description,
+        }),
         sortOrder: entry.sortOrder,
         knowledgeCardId: entry.knowledgeCardId ?? null,
         knowledgeCardTitle: entry.knowledgeCardTitle ?? null,
@@ -305,6 +329,10 @@ export function getDemoTaskInstanceById(
     pointsEarned: instance.pointsEarned,
     title: instance.title,
     description: instance.description,
+    instructionsHtml: resolveTaskInstructionsHtml({
+      instructionsHtml: instance.instructionsHtml,
+      description: instance.description,
+    }),
     sortOrder: instance.sortOrder,
     knowledgeCardId: instance.knowledgeCardId ?? null,
     knowledgeCardTitle: instance.knowledgeCardTitle ?? null,
@@ -472,4 +500,116 @@ export function deleteDemoRewardTier(familyId: string, rewardTierId: string): bo
   }
   persistStoresToDisk();
   return true;
+}
+
+export interface DemoRewardClaimsSnapshot {
+  spentToday: number;
+  historyByRewardTier: Record<
+    string,
+    {
+      count: number;
+      lastClaimedAt: string;
+    }
+  >;
+}
+
+export function getDemoRewardClaimsSnapshot(
+  familyId: string,
+  childProfileId: string,
+  date: string,
+): DemoRewardClaimsSnapshot {
+  const store = getStore(familyId);
+  const historyByRewardTier: DemoRewardClaimsSnapshot["historyByRewardTier"] = {};
+  let spentToday = 0;
+
+  const claims = [...store.rewardClaims]
+    .filter((entry) => entry.childProfileId === childProfileId)
+    .sort((left, right) => right.claimedAt.localeCompare(left.claimedAt));
+
+  for (const claim of claims) {
+    if (claim.claimDate === date) {
+      spentToday += claim.pointsSpent;
+    }
+
+    const existing = historyByRewardTier[claim.rewardTierId];
+    if (!existing) {
+      historyByRewardTier[claim.rewardTierId] = {
+        count: 1,
+        lastClaimedAt: claim.claimedAt,
+      };
+      continue;
+    }
+
+    historyByRewardTier[claim.rewardTierId] = {
+      count: existing.count + 1,
+      lastClaimedAt: existing.lastClaimedAt,
+    };
+  }
+
+  return {
+    spentToday: Math.max(0, Math.trunc(spentToday)),
+    historyByRewardTier,
+  };
+}
+
+export interface ClaimDemoRewardInput {
+  familyId: string;
+  childProfileId: string;
+  rewardTierId: string;
+  date: string;
+}
+
+export interface ClaimDemoRewardResult {
+  rewardTierId: string;
+  rewardLabel: string;
+  pointsSpent: number;
+  claimedAt: string;
+  usageCount: number;
+  spentToday: number;
+  dailyPointsTotal: number;
+}
+
+export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardResult | null {
+  const store = getStore(input.familyId);
+  const rewardTier = store.rewardTiers.find((entry) => entry.id === input.rewardTierId);
+  if (!rewardTier) {
+    return null;
+  }
+
+  const dailyPoints = getOrCreateDemoDailyPoints(input.familyId, input.childProfileId, input.date);
+  const snapshot = getDemoRewardClaimsSnapshot(input.familyId, input.childProfileId, input.date);
+  const availableStars = Math.max(0, dailyPoints.pointsTotal - snapshot.spentToday);
+
+  if (rewardTier.pointsRequired > availableStars) {
+    return null;
+  }
+
+  const claimedAt = new Date().toISOString();
+  const pointsSpent = Math.max(0, Math.trunc(rewardTier.pointsRequired));
+  const claim: DemoRewardClaimRecord = {
+    id: randomUUID(),
+    familyId: input.familyId,
+    childProfileId: input.childProfileId,
+    rewardTierId: rewardTier.id,
+    pointsSpent,
+    claimDate: input.date,
+    claimedAt,
+  };
+
+  store.rewardClaims.push(claim);
+  persistStoresToDisk();
+
+  const usageCount = store.rewardClaims.filter(
+    (entry) => entry.childProfileId === input.childProfileId && entry.rewardTierId === input.rewardTierId,
+  ).length;
+
+  return {
+    rewardTierId: rewardTier.id,
+    rewardLabel: rewardTier.label,
+    pointsSpent,
+    claimedAt,
+    usageCount,
+    spentToday: snapshot.spentToday + pointsSpent,
+    dailyPointsTotal: dailyPoints.pointsTotal,
+  };
 }

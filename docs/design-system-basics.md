@@ -35,27 +35,54 @@ Tokens are defined in `tailwind.config.ts` and consumed through DS components.
 - rounded corners: `xl`, `2xl`, `3xl`.
 - shadows: `card`, `floating`.
 
+## Mission Drawer Contract
+
+Mission drawer visuals are now standardized through DS tokens + semantic classes.
+
+Source of truth:
+
+- Tokens: `src/app/globals.css` (`--ds-mission-list-*`, `--radius-mission-list-*`)
+- Component classes: `src/app/globals.css` (`.mission-list-drawer-*`)
+- Consumer: `src/components/missions/MissionsSummaryCard.tsx`
+
+Rule:
+
+- Do not style mission drawer list rows/footer/progress with ad-hoc Tailwind classes.
+- Use DS classes (`mission-list-drawer-row`, `mission-list-drawer-pill`, `mission-list-drawer-footer-card`, etc.).
+- Category color variants are limited to DS variant classes (`--indigo`, `--purple`, `--emerald`).
+
+Reference:
+
+- `docs/design-system-mission-drawer.md`
+
 ## Base Components
 
 ### Button
 
 File: `src/components/ds/button.tsx`
 
-- Variants: `primary`, `secondary`, `tertiary`, `ghost`, `link`.
+- Variants: `primary`, `premium`, `secondary`, `glass`, `tertiary`, `ghost`, `link`.
 - Sizes: `sm`, `md`, `lg`.
 - Supports: `disabled`, `loading`, `fullWidth`.
+- Harmonization note:
+  - `premium` is the shared high-emphasis CTA style used to align parent actions with child visual language.
+  - `glass` is a lighter surface CTA for contextual actions.
 
 ### Card
 
 File: `src/components/ds/card.tsx`
 
 - Structural primitives: `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`.
+- Surfaces:
+  - `default`: standard DS panel.
+  - `glass`: elevated translucent panel.
+  - `child`: premium gradient panel used for child-like emphasis blocks.
 
 ### Badge
 
 File: `src/components/ds/badge.tsx`
 
-- Variants: `neutral`, `success`, `warning`, `danger`.
+- Variants: `neutral`, `glass`, `success`, `warning`, `danger`.
 
 ### TabBar
 
@@ -87,6 +114,15 @@ Use `npm run storybook` to inspect primitives and props controls.
 
 - DS scope is intentionally minimal in Phase 1.
 - No complex domain widgets yet (timeline, timer, checklist, school forms).
+
+## Parent/Child Harmonization (Sprint)
+
+- Strategy: keep one DS and extend visual variants instead of cloning parent vs child component sets.
+- Parent modules can adopt child-grade emphasis with:
+  - `Button variant="premium"` for primary CTAs.
+  - `Button variant="glass"` for secondary contextual actions.
+  - `Card surface="glass"` / `Card surface="child"` for premium panels.
+- This keeps behavior/API stable while progressively converging UX across shells.
 
 ## Future Work
 

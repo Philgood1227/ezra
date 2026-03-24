@@ -1,12 +1,47 @@
 import { getCurrentProfile } from "@/lib/auth/current-profile";
-import { getOrCreateDemoDailyPoints, listDemoRewardTiers } from "@/lib/demo/gamification-store";
+import {
+  getDemoRewardClaimsSnapshot,
+  getOrCreateDemoDailyPoints,
+  listDemoRewardTiers,
+} from "@/lib/demo/gamification-store";
 import type { DailyPointsSummary, RewardTierSummary } from "@/lib/day-templates/types";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 type RewardTierRow = Database["public"]["Tables"]["reward_tiers"]["Row"];
 type DailyPointsRow = Database["public"]["Tables"]["daily_points"]["Row"];
+type RewardClaimRow = Database["public"]["Tables"]["reward_claims"]["Row"];
+
+function shouldUseAdminClientForChildPin(
+  context: Awaited<ReturnType<typeof getCurrentProfile>>,
+): boolean {
+  return (
+    context.source === "child-pin" &&
+    context.role === "child" &&
+    Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+  );
+}
+
+async function getSupabaseClientForContext(
+  context: Awaited<ReturnType<typeof getCurrentProfile>>,
+) {
+  return shouldUseAdminClientForChildPin(context)
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
+}
+
+export interface RewardClaimsSnapshot {
+  spentToday: number;
+  historyByRewardTier: Record<
+    string,
+    {
+      count: number;
+      lastClaimedAt: string;
+    }
+  >;
+}
 
 function mapRewardTier(row: RewardTierRow): RewardTierSummary {
   return {
@@ -29,6 +64,69 @@ function mapDailyPoints(row: DailyPointsRow): DailyPointsSummary {
   };
 }
 
+export async function getRewardClaimsSnapshotForChild(
+  childProfileId: string,
+  dateKey: string,
+): Promise<RewardClaimsSnapshot> {
+  const emptySnapshot: RewardClaimsSnapshot = {
+    spentToday: 0,
+    historyByRewardTier: {},
+  };
+
+  if (!childProfileId || !dateKey) {
+    return emptySnapshot;
+  }
+
+  const context = await getCurrentProfile();
+  if (!context.familyId) {
+    return emptySnapshot;
+  }
+
+  if (!isSupabaseEnabled()) {
+    return getDemoRewardClaimsSnapshot(context.familyId, childProfileId, dateKey);
+  }
+
+  const supabase = await getSupabaseClientForContext(context);
+  const { data, error } = await supabase
+    .from("reward_claims")
+    .select("*")
+    .eq("family_id", context.familyId)
+    .eq("child_profile_id", childProfileId)
+    .order("claimed_at", { ascending: false });
+
+  if (error || !data) {
+    return emptySnapshot;
+  }
+
+  const historyByRewardTier: RewardClaimsSnapshot["historyByRewardTier"] = {};
+  let spentToday = 0;
+
+  for (const claim of data as RewardClaimRow[]) {
+    if (claim.claim_date === dateKey) {
+      spentToday += Math.max(0, Math.trunc(claim.points_spent));
+    }
+
+    const existing = historyByRewardTier[claim.reward_tier_id];
+    if (!existing) {
+      historyByRewardTier[claim.reward_tier_id] = {
+        count: 1,
+        lastClaimedAt: claim.claimed_at,
+      };
+      continue;
+    }
+
+    historyByRewardTier[claim.reward_tier_id] = {
+      count: existing.count + 1,
+      lastClaimedAt: existing.lastClaimedAt,
+    };
+  }
+
+  return {
+    spentToday: Math.max(0, Math.trunc(spentToday)),
+    historyByRewardTier,
+  };
+}
+
 export async function getRewardTiersForCurrentFamily(): Promise<RewardTierSummary[]> {
   const context = await getCurrentProfile();
   if (!context.familyId) {
@@ -39,7 +137,7 @@ export async function getRewardTiersForCurrentFamily(): Promise<RewardTierSummar
     return listDemoRewardTiers(context.familyId);
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseClientForContext(context);
   const { data, error } = await supabase
     .from("reward_tiers")
     .select("*")
@@ -71,7 +169,7 @@ export async function getTodayDailyPointsForChild(childProfileId: string): Promi
     return getOrCreateDemoDailyPoints(context.familyId, childProfileId, dateKey);
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseClientForContext(context);
   const { data, error } = await supabase
     .from("daily_points")
     .select("*")

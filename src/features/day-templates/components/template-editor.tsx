@@ -10,7 +10,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CategoryIcon,
   Input,
+  RichTextEditor,
   Select,
   TextArea,
 } from "@/components/ds";
@@ -27,19 +29,25 @@ import {
   updateTemplateBlockAction,
   updateTemplateTaskAction,
 } from "@/lib/actions/day-templates";
-import { getParentAssignmentLabel } from "@/lib/domain/assignments";
 import { useFormField } from "@/lib/hooks/useFormField";
 import {
+  CATEGORY_CODES,
+  getCategoryCodeLabel,
   getCategoryColorOption,
-  getPlanActionableKindLabel,
-  PLAN_ACTIONABLE_KIND_OPTIONS,
-  PLAN_SUBKIND_SUGGESTIONS,
+  getSubkindSuggestionsForCategoryCode,
+  normalizeSubkindInput,
+  parseCategoryCode,
   WEEKDAY_OPTIONS,
 } from "@/lib/day-templates/constants";
+import { resolveTaskInstructionsEditorInitialHtml } from "@/lib/day-templates/instructions";
+import {
+  getChildTimeBlockForTimeRange,
+  getChildTimeBlockLabel,
+} from "@/lib/time/day-segments";
 import type {
+  CategoryCode,
   DayTemplateBlockInput,
   DayTemplateBlockSummary,
-  FamilyMemberSummary,
   PlanActionableKind,
   TaskCategorySummary,
   TemplateInput,
@@ -52,7 +60,9 @@ interface DayTemplateEditorProps {
   categories: TaskCategorySummary[];
   template: TemplateWithTasks | null;
   initialWeekday: number;
-  familyMembers: FamilyMemberSummary[];
+  mode?: "all" | "structure" | "tasks";
+  taskScope?: "all" | "school" | "extra";
+  templateBasePath?: string;
   knowledgeCardOptions: Array<{
     id: string;
     title: string;
@@ -70,20 +80,21 @@ const BLOCK_OPTIONS: Array<{ value: DayTemplateBlockInput["blockType"]; label: s
   { value: "free_time", label: "Temps libre" },
   { value: "other", label: "Autre" },
 ];
+const SCHOOL_CATEGORY_CODE_SET = new Set<CategoryCode>(["homework", "revision", "training"]);
 
 function getCategoryById(categories: TaskCategorySummary[], categoryId: string): TaskCategorySummary | undefined {
   return categories.find((category) => category.id === categoryId);
 }
 
-function resolveTaskKind(categories: TaskCategorySummary[], categoryId: string): PlanActionableKind {
-  return getCategoryById(categories, categoryId)?.defaultItemKind ?? "mission";
+function resolveCategoryDefaultTaskKind(
+  categories: TaskCategorySummary[],
+  categoryId: string,
+): PlanActionableKind | undefined {
+  return getCategoryById(categories, categoryId)?.defaultItemKind ?? undefined;
 }
 
-function taskKindBadgeClass(kind: PlanActionableKind): string {
-  return (
-    PLAN_ACTIONABLE_KIND_OPTIONS.find((option) => option.value === kind)?.badgeClass ??
-    "bg-accent-100 text-accent-900"
-  );
+function resolveTaskKind(categories: TaskCategorySummary[], categoryId: string): PlanActionableKind {
+  return resolveCategoryDefaultTaskKind(categories, categoryId) ?? "mission";
 }
 
 function defaultTask(categories: TaskCategorySummary[]): TemplateTaskInput {
@@ -94,13 +105,14 @@ function defaultTask(categories: TaskCategorySummary[]): TemplateTaskInput {
     categoryId,
     itemKind,
     itemSubkind: null,
-    assignedProfileId: null,
     title: "",
     description: null,
+    instructionsHtml: null,
     startTime: "07:30",
     endTime: "08:00",
     pointsBase: 2,
     knowledgeCardId: null,
+    recommendedChildTimeBlockId: getChildTimeBlockForTimeRange("07:30", "08:00"),
   };
 }
 
@@ -110,6 +122,7 @@ function defaultBlock(): DayTemplateBlockInput {
     label: "Ecole",
     startTime: "08:30",
     endTime: "12:00",
+    childTimeBlockId: getChildTimeBlockForTimeRange("08:30", "12:00"),
   };
 }
 
@@ -125,12 +138,24 @@ function isValidRange(startTime: string, endTime: string): boolean {
   return startTime < endTime;
 }
 
-function toAssignedLabel(member: FamilyMemberSummary): string {
-  return member.role === "child" ? "Enfant" : member.displayName;
+function isSchoolCategoryCode(code: CategoryCode | null): boolean {
+  return code ? SCHOOL_CATEGORY_CODE_SET.has(code) : false;
 }
 
 function blockLabel(block: DayTemplateBlockSummary): string {
   return block.label ?? BLOCK_OPTIONS.find((option) => option.value === block.blockType)?.label ?? "Bloc";
+}
+
+function resolveBlockChildLabel(block: DayTemplateBlockSummary): string {
+  const childBlockId =
+    block.childTimeBlockId ?? getChildTimeBlockForTimeRange(block.startTime, block.endTime);
+  return getChildTimeBlockLabel(childBlockId);
+}
+
+function resolveTaskChildLabel(task: TemplateTaskSummary): string {
+  const childBlockId =
+    task.recommendedChildTimeBlockId ?? getChildTimeBlockForTimeRange(task.startTime, task.endTime);
+  return getChildTimeBlockLabel(childBlockId);
 }
 
 function taskSchoolContext(task: TemplateTaskSummary, blocks: DayTemplateBlockSummary[]): string {
@@ -160,7 +185,9 @@ export function DayTemplateEditor({
   categories,
   template,
   initialWeekday,
-  familyMembers,
+  mode = "all",
+  taskScope = "all",
+  templateBasePath = "/parent/day-templates",
   knowledgeCardOptions,
 }: DayTemplateEditorProps): React.JSX.Element {
   const router = useRouter();
@@ -194,6 +221,49 @@ export function DayTemplateEditor({
     () => [...(template?.blocks ?? [])].sort((left, right) => left.startTime.localeCompare(right.startTime)),
     [template?.blocks],
   );
+  const selectableCategories = useMemo(() => {
+    const byCode = new Map<CategoryCode, TaskCategorySummary>();
+
+    for (const category of categories) {
+      const categoryCode = parseCategoryCode(category.code ?? null);
+      if (!categoryCode) {
+        continue;
+      }
+
+      if (!byCode.has(categoryCode)) {
+        byCode.set(categoryCode, category);
+      }
+    }
+
+    return CATEGORY_CODES.map((code) => byCode.get(code)).filter(
+      (category): category is TaskCategorySummary => Boolean(category),
+    );
+  }, [categories]);
+  const schoolSelectableCategories = useMemo(
+    () =>
+      selectableCategories.filter((category) =>
+        isSchoolCategoryCode(parseCategoryCode(category.code ?? null)),
+      ),
+    [selectableCategories],
+  );
+  const extraSelectableCategories = useMemo(
+    () =>
+      selectableCategories.filter(
+        (category) => !isSchoolCategoryCode(parseCategoryCode(category.code ?? null)),
+      ),
+    [selectableCategories],
+  );
+  const scopedSelectableCategories = useMemo(() => {
+    if (taskScope === "school") {
+      return schoolSelectableCategories;
+    }
+
+    if (taskScope === "extra") {
+      return extraSelectableCategories;
+    }
+
+    return selectableCategories;
+  }, [extraSelectableCategories, schoolSelectableCategories, selectableCategories, taskScope]);
 
   const selectedTask = orderedTasks.find((task) => task.id === selectedTaskId) ?? null;
   const selectedBlock = orderedBlocks.find((block) => block.id === selectedBlockId) ?? null;
@@ -213,25 +283,31 @@ export function DayTemplateEditor({
 
   useEffect(() => {
     if (!selectedTask) {
-      setTaskDraft(defaultTask(categories));
+      setTaskDraft(defaultTask(scopedSelectableCategories));
       resetTaskTitleField("");
       return;
     }
 
     setTaskDraft({
       categoryId: selectedTask.categoryId,
-      itemKind: selectedTask.itemKind ?? resolveTaskKind(categories, selectedTask.categoryId),
+      itemKind: selectedTask.itemKind ?? resolveTaskKind(scopedSelectableCategories, selectedTask.categoryId),
       itemSubkind: selectedTask.itemSubkind ?? null,
-      assignedProfileId: selectedTask.assignedProfileId ?? null,
       title: selectedTask.title,
       description: selectedTask.description,
+      instructionsHtml: resolveTaskInstructionsEditorInitialHtml({
+        instructionsHtml: selectedTask.instructionsHtml,
+        description: selectedTask.description,
+      }),
       startTime: selectedTask.startTime,
       endTime: selectedTask.endTime,
       pointsBase: selectedTask.pointsBase,
       knowledgeCardId: selectedTask.knowledgeCardId ?? null,
+      recommendedChildTimeBlockId:
+        selectedTask.recommendedChildTimeBlockId ??
+        getChildTimeBlockForTimeRange(selectedTask.startTime, selectedTask.endTime),
     });
     resetTaskTitleField(selectedTask.title);
-  }, [categories, resetTaskTitleField, selectedTask]);
+  }, [resetTaskTitleField, scopedSelectableCategories, selectedTask]);
 
   useEffect(() => {
     if (!selectedBlock) {
@@ -244,8 +320,44 @@ export function DayTemplateEditor({
       label: selectedBlock.label,
       startTime: selectedBlock.startTime,
       endTime: selectedBlock.endTime,
+      childTimeBlockId:
+        selectedBlock.childTimeBlockId ??
+        getChildTimeBlockForTimeRange(selectedBlock.startTime, selectedBlock.endTime),
     });
   }, [selectedBlock]);
+
+  useEffect(() => {
+    if (scopedSelectableCategories.length === 0) {
+      return;
+    }
+
+    const hasCategory = scopedSelectableCategories.some((category) => category.id === taskDraft.categoryId);
+    if (hasCategory) {
+      return;
+    }
+
+    const nextCategory = scopedSelectableCategories[0];
+    if (!nextCategory) {
+      return;
+    }
+
+    const nextDefaultKind = resolveCategoryDefaultTaskKind(scopedSelectableCategories, nextCategory.id);
+    setTaskDraft((current) => {
+      const nextDraft: TemplateTaskInput = {
+        ...current,
+        categoryId: nextCategory.id,
+        itemSubkind: null,
+      };
+
+      if (nextDefaultKind) {
+        nextDraft.itemKind = nextDefaultKind;
+      } else if (!nextDraft.itemKind) {
+        delete nextDraft.itemKind;
+      }
+
+      return nextDraft;
+    });
+  }, [scopedSelectableCategories, taskDraft.categoryId]);
 
   function saveTemplate(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -269,7 +381,8 @@ export function DayTemplateEditor({
           return;
         }
 
-        router.push(`/parent/day-templates/${created.data.id}`);
+        const normalizedTemplateBasePath = templateBasePath.replace(/\/$/, "");
+        router.push(`${normalizedTemplateBasePath}/${created.data.id}`);
         router.refresh();
         return;
       }
@@ -302,7 +415,7 @@ export function DayTemplateEditor({
         return;
       }
 
-      router.push("/parent/day-templates");
+      router.push(templateBasePath);
       router.refresh();
     });
   }
@@ -329,6 +442,7 @@ export function DayTemplateEditor({
         label: blockDraft.label?.trim() ?? null,
         startTime: blockDraft.startTime,
         endTime: blockDraft.endTime,
+        childTimeBlockId: blockDraftChildTimeBlockId,
       };
 
       const result = selectedBlock
@@ -378,19 +492,21 @@ export function DayTemplateEditor({
     }
 
     startTransition(async () => {
-      const resolvedItemKind = taskDraft.itemKind ?? resolveTaskKind(categories, taskDraft.categoryId);
+      const resolvedItemKind = taskDraft.itemKind ?? resolveTaskKind(scopedSelectableCategories, taskDraft.categoryId);
+      const normalizedSubkind = normalizeSubkindInput(taskDraft.itemSubkind ?? "");
 
       const payload: TemplateTaskInput = {
         categoryId: taskDraft.categoryId,
         itemKind: resolvedItemKind,
-        itemSubkind: taskDraft.itemSubkind?.trim() ? taskDraft.itemSubkind.trim() : null,
-        assignedProfileId: taskDraft.assignedProfileId ?? null,
+        itemSubkind: normalizedSubkind || null,
         title: taskDraft.title.trim(),
         description: taskDraft.description?.trim() ? taskDraft.description.trim() : null,
+        instructionsHtml: taskDraft.instructionsHtml?.trim() ? taskDraft.instructionsHtml : null,
         startTime: taskDraft.startTime,
         endTime: taskDraft.endTime,
         pointsBase: Math.max(0, Math.trunc(taskDraft.pointsBase)),
         knowledgeCardId: taskDraft.knowledgeCardId ?? null,
+        recommendedChildTimeBlockId: taskDraftRecommendedChildTimeBlockId,
       };
 
       const result = selectedTask
@@ -434,94 +550,211 @@ export function DayTemplateEditor({
     });
   }
 
-  function previewColor(task: TemplateTaskSummary): string {
-    const color = getCategoryColorOption(task.category.colorKey);
-    return color.eventClass;
-  }
+  const taskDraftCategory = getCategoryById(scopedSelectableCategories, taskDraft.categoryId);
+  const taskDraftCategoryCode = taskDraftCategory ? parseCategoryCode(taskDraftCategory.code ?? null) : null;
+  const taskSubkindSuggestions = getSubkindSuggestionsForCategoryCode(taskDraftCategoryCode);
+  const taskSubkindListId = taskDraftCategoryCode ? `task-subkind-${taskDraftCategoryCode}` : "task-subkind-none";
+  const schoolTasks = orderedTasks.filter((task) =>
+    isSchoolCategoryCode(parseCategoryCode(task.category.code ?? null)),
+  );
+  const extraTasks = orderedTasks.filter(
+    (task) => !isSchoolCategoryCode(parseCategoryCode(task.category.code ?? null)),
+  );
+  const showSchoolTaskSection = taskScope !== "extra";
+  const showExtraTaskSection = taskScope !== "school";
+  const taskPanelTitle =
+    taskScope === "school" ? "Missions d'ecole programmees" : taskScope === "extra" ? "Activites plaisir programmees" : "Taches programmees";
+  const taskPanelDescription =
+    taskScope === "school"
+      ? "Taches scolaires (devoirs, revisions, entrainement)."
+      : taskScope === "extra"
+        ? "Activites plaisir et vie quotidienne."
+        : "Gestion des taches hebdomadaires, separees par univers.";
+  const taskFormTitle =
+    taskScope === "school"
+      ? selectedTask
+        ? "Modifier la mission d'ecole"
+        : "Ajouter une mission d'ecole"
+      : taskScope === "extra"
+        ? selectedTask
+          ? "Modifier l'activite plaisir"
+          : "Ajouter une activite plaisir"
+        : selectedTask
+          ? "Modifier la tache"
+          : "Ajouter une tache";
+  const showStructureSections = mode !== "tasks";
+  const showTaskSections = mode !== "structure";
+  const blockDraftChildTimeBlockId = getChildTimeBlockForTimeRange(
+    blockDraft.startTime,
+    blockDraft.endTime,
+  );
+  const taskDraftRecommendedChildTimeBlockId = getChildTimeBlockForTimeRange(
+    taskDraft.startTime,
+    taskDraft.endTime,
+  );
 
-  const taskDraftKind = taskDraft.itemKind ?? resolveTaskKind(categories, taskDraft.categoryId);
-  const taskSubkindSuggestions = PLAN_SUBKIND_SUGGESTIONS[taskDraftKind];
-  const taskSubkindListId = `task-subkind-${taskDraftKind}`;
+  function renderTaskCard(task: TemplateTaskSummary): React.JSX.Element {
+    const index = orderedTasks.findIndex((entry) => entry.id === task.id);
+    const color = getCategoryColorOption(task.category.colorKey);
+    const categoryLabel = task.category?.name?.trim() ?? "";
+    const currentTaskSubkind = task.itemSubkind?.trim() ? task.itemSubkind.trim() : null;
+    return (
+      <div
+        key={task.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedTaskId(task.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setSelectedTaskId(task.id);
+          }
+        }}
+        className={`w-full rounded-radius-button border px-3 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${color.eventClass} ${
+          selectedTaskId === task.id ? "ring-2 ring-brand-primary" : ""
+        }`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            {categoryLabel ? (
+              <Badge data-testid="parent-task-category-pill" className={color.badgeClass}>
+                <CategoryIcon iconKey={task.category.icon} className="size-4" /> {categoryLabel}
+              </Badge>
+            ) : null}
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {currentTaskSubkind ? (
+                <Badge className="bg-bg-surface-hover text-text-secondary">{currentTaskSubkind}</Badge>
+              ) : null}
+            </div>
+            <p data-testid="parent-task-title" className="mt-1 font-semibold text-text-primary">
+              {task.title}
+            </p>
+            <p className="text-xs text-text-secondary">
+              {task.startTime} - {task.endTime} | +{task.pointsBase} pts
+            </p>
+            <p className="text-xs font-semibold text-text-secondary">{taskSchoolContext(task, orderedBlocks)}</p>
+            <p className="text-xs text-text-muted">Bloc enfant : {resolveTaskChildLabel(task)}</p>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={index <= 0 || isPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                moveTask(task.id, "up");
+              }}
+            >
+              Monter
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={index < 0 || index === orderedTasks.length - 1 || isPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                moveTask(task.id, "down");
+              }}
+            >
+              Descendre
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(event) => {
+                event.stopPropagation();
+                removeTask(task.id);
+              }}
+            >
+              Supprimer
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>{template ? "Parametres de la journee type" : "Creer une journee type"}</CardTitle>
-          <CardDescription>Nom, jour et statut par defaut.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={saveTemplate}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label htmlFor="template-name" className="text-sm font-semibold text-text-secondary">
-                  Nom de la journee type
-                </label>
-                <Input
-                  id="template-name"
-                  value={templateDraft.name}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setTemplateDraft((current) => ({ ...current, name: value }));
-                    templateNameField.setValue(value);
-                  }}
-                  onBlur={templateNameField.markTouched}
-                  errorMessage={templateNameField.hasError ? templateNameField.error ?? undefined : undefined}
-                  successMessage={templateNameField.isValid ? "Champ valide" : undefined}
-                  placeholder="Journee d'ecole"
-                  required
-                />
+      {showStructureSections ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{template ? "Parametres de la journee type" : "Creer une journee type"}</CardTitle>
+            <CardDescription>Nom, jour et statut par defaut.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={saveTemplate}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="template-name" className="text-sm font-semibold text-text-secondary">
+                    Nom de la journee type
+                  </label>
+                  <Input
+                    id="template-name"
+                    value={templateDraft.name}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setTemplateDraft((current) => ({ ...current, name: value }));
+                      templateNameField.setValue(value);
+                    }}
+                    onBlur={templateNameField.markTouched}
+                    errorMessage={templateNameField.hasError ? templateNameField.error ?? undefined : undefined}
+                    successMessage={templateNameField.isValid ? "Champ valide" : undefined}
+                    placeholder="Journee d'ecole"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="template-weekday" className="text-sm font-semibold text-text-secondary">
+                    Jour de la semaine
+                  </label>
+                  <Select
+                    id="template-weekday"
+                    value={String(templateDraft.weekday)}
+                    onChange={(event) =>
+                      setTemplateDraft((current) => ({ ...current, weekday: Number(event.target.value) }))
+                    }
+                  >
+                    {WEEKDAY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="template-weekday" className="text-sm font-semibold text-text-secondary">
-                  Jour de la semaine
-                </label>
-                <Select
-                  id="template-weekday"
-                  value={String(templateDraft.weekday)}
+              <label className="flex items-center gap-2 text-sm text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={templateDraft.isDefault}
                   onChange={(event) =>
-                    setTemplateDraft((current) => ({ ...current, weekday: Number(event.target.value) }))
+                    setTemplateDraft((current) => ({ ...current, isDefault: event.target.checked }))
                   }
-                >
-                  {WEEKDAY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
+                  className="size-4 rounded border-border-default"
+                />
+                Definir comme modele par defaut pour ce jour
+              </label>
 
-            <label className="flex items-center gap-2 text-sm text-text-secondary">
-              <input
-                type="checkbox"
-                checked={templateDraft.isDefault}
-                onChange={(event) =>
-                  setTemplateDraft((current) => ({ ...current, isDefault: event.target.checked }))
-                }
-                className="size-4 rounded border-border-default"
-              />
-              Definir comme modele par defaut pour ce jour
-            </label>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" loading={isPending}>
-                {template ? "Enregistrer" : "Creer"}
-              </Button>
-              {template ? (
-                <Button type="button" variant="ghost" onClick={removeTemplate} disabled={isPending}>
-                  Supprimer la journee type
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" loading={isPending}>
+                  {template ? "Enregistrer" : "Creer"}
                 </Button>
-              ) : null}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {template ? (
+                  <Button type="button" variant="ghost" onClick={removeTemplate} disabled={isPending}>
+                    Supprimer la journee type
+                  </Button>
+                ) : null}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {feedback ? <ParentFeedbackBanner tone={feedback.tone} message={feedback.message} /> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {showStructureSections ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader className="flex-row items-center justify-between gap-3">
             <div>
@@ -559,6 +792,9 @@ export function DayTemplateEditor({
                       <p className="font-semibold text-text-primary">{blockLabel(block)}</p>
                       <p className="text-xs text-text-secondary">
                         {block.startTime} - {block.endTime}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        Bloc enfant : {resolveBlockChildLabel(block)}
                       </p>
                     </div>
                     <Button
@@ -652,6 +888,11 @@ export function DayTemplateEditor({
                   </div>
                 </div>
 
+                <p className="text-xs text-text-secondary">
+                  Cette plage apparaitra dans le bloc {getChildTimeBlockLabel(blockDraftChildTimeBlockId)} pour
+                  l&apos;enfant.
+                </p>
+
                 <div className="flex gap-2">
                   <Button type="submit" loading={isPending}>
                     {selectedBlock ? "Enregistrer la plage" : "Ajouter la plage"}
@@ -666,108 +907,53 @@ export function DayTemplateEditor({
             )}
           </CardContent>
         </Card>
-      </div>
+      </div> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {showTaskSections ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle>Taches / activites</CardTitle>
-            <CardDescription>Taches cochables autour des plages scolaires.</CardDescription>
+            <CardTitle>{taskPanelTitle}</CardTitle>
+            <CardDescription>{taskPanelDescription}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {orderedTasks.length === 0 ? (
-              <p className="text-sm text-text-secondary">Aucune tache pour l&apos;instant.</p>
-            ) : (
-              orderedTasks.map((task, index) => {
-                const color = getCategoryColorOption(task.category.colorKey);
-                const currentTaskKind = task.itemKind ?? resolveTaskKind(categories, task.categoryId);
-                const currentTaskSubkind = task.itemSubkind?.trim() ? task.itemSubkind.trim() : null;
-                return (
-                  <div
-                    key={task.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedTaskId(task.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedTaskId(task.id);
-                      }
-                    }}
-                    className={`w-full rounded-radius-button border px-3 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${color.eventClass} ${
-                      selectedTaskId === task.id ? "ring-2 ring-brand-primary" : ""
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <Badge className={color.badgeClass}>
-                          {task.category.icon} {task.category.name}
-                        </Badge>
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <Badge className={taskKindBadgeClass(currentTaskKind)}>
-                            {getPlanActionableKindLabel(currentTaskKind)}
-                          </Badge>
-                          {currentTaskSubkind ? (
-                            <Badge className="bg-bg-surface-hover text-text-secondary">{currentTaskSubkind}</Badge>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 font-semibold text-text-primary">{task.title}</p>
-                        <p className="text-xs text-text-secondary">
-                          {task.startTime} - {task.endTime} | +{task.pointsBase} pts
-                        </p>
-                        <p className="text-xs text-text-muted">Assigne a : {getParentAssignmentLabel(task)}</p>
-                        <p className="text-xs font-semibold text-text-secondary">{taskSchoolContext(task, orderedBlocks)}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={index === 0 || isPending}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            moveTask(task.id, "up");
-                          }}
-                        >
-                          Monter
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={index === orderedTasks.length - 1 || isPending}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            moveTask(task.id, "down");
-                          }}
-                        >
-                          Descendre
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            removeTask(task.id);
-                          }}
-                        >
-                          Supprimer
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <CardContent className="space-y-4">
+            {showSchoolTaskSection ? (
+              <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-text-primary">Scolarite</p>
+                <p className="text-xs text-text-secondary">{schoolTasks.length} tache(s)</p>
+              </div>
+              {schoolTasks.length === 0 ? (
+                <p className="text-sm text-text-secondary">Aucune tache scolaire.</p>
+              ) : (
+                <div className="space-y-3">{schoolTasks.map((task) => renderTaskCard(task))}</div>
+              )}
+              </section>
+            ) : null}
+
+            {showExtraTaskSection ? (
+              <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-text-primary">Vie quotidienne & extras</p>
+                <p className="text-xs text-text-secondary">{extraTasks.length} tache(s)</p>
+              </div>
+              {extraTasks.length === 0 ? (
+                <p className="text-sm text-text-secondary">Aucune tache extra-scolaire.</p>
+              ) : (
+                <div className="space-y-3">{extraTasks.map((task) => renderTaskCard(task))}</div>
+              )}
+              </section>
+            ) : null}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>{selectedTask ? "Modifier la tache" : "Ajouter une tache"}</CardTitle>
+            <CardTitle>{taskFormTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             {!template ? (
               <p className="text-sm text-text-secondary">Sauvegardez d&apos;abord la journee type.</p>
-            ) : categories.length === 0 ? (
+            ) : scopedSelectableCategories.length === 0 ? (
               <p className="text-sm text-text-secondary">Ajoutez d&apos;abord une categorie de tache.</p>
             ) : (
               <form className="space-y-4" onSubmit={saveTask}>
@@ -791,94 +977,83 @@ export function DayTemplateEditor({
                   />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label htmlFor="task-category" className="text-sm font-semibold text-text-secondary">
-                      Categorie
-                    </label>
-                    <Select
-                      id="task-category"
-                      value={taskDraft.categoryId}
-                      onChange={(event) =>
-                        setTaskDraft((current) => {
-                          const nextCategoryId = event.target.value;
-                          const previousDefaultKind = resolveTaskKind(categories, current.categoryId);
-                          const nextDefaultKind = resolveTaskKind(categories, nextCategoryId);
-                          const shouldFollowCategoryDefault =
-                            !current.itemKind || current.itemKind === previousDefaultKind;
-                          const resolvedItemKind: PlanActionableKind = shouldFollowCategoryDefault
-                            ? nextDefaultKind
-                            : current.itemKind ?? previousDefaultKind;
-                          const resolvedItemSubkind: string | null = shouldFollowCategoryDefault
-                            ? null
-                            : current.itemSubkind ?? null;
-
-                          return {
-                            ...current,
-                            categoryId: nextCategoryId,
-                            itemKind: resolvedItemKind,
-                            itemSubkind: resolvedItemSubkind,
-                          };
-                        })
-                      }
-                    >
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.icon} {category.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="task-assignee" className="text-sm font-semibold text-text-secondary">
-                      Assigne a
-                    </label>
-                    <Select
-                      id="task-assignee"
-                      value={taskDraft.assignedProfileId ?? ""}
-                      onChange={(event) =>
-                        setTaskDraft((current) => ({
+                <div className="space-y-1">
+                  <label htmlFor="task-category" className="text-sm font-semibold text-text-secondary">
+                    Categorie
+                  </label>
+                  <Select
+                    id="task-category"
+                    value={taskDraft.categoryId}
+                    onChange={(event) =>
+                      setTaskDraft((current) => {
+                        const nextCategoryId = event.target.value;
+                        const nextDefaultKind = resolveCategoryDefaultTaskKind(scopedSelectableCategories, nextCategoryId);
+                        const nextDraft: TemplateTaskInput = {
                           ...current,
-                          assignedProfileId: event.target.value || null,
-                        }))
-                      }
-                    >
-                      <option value="">Famille</option>
-                      {familyMembers
-                        .filter((member) => member.role === "child" || member.role === "parent")
-                        .map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {toAssignedLabel(member)}
-                          </option>
-                        ))}
-                    </Select>
-                  </div>
-                </div>
+                          categoryId: nextCategoryId,
+                          itemSubkind: null,
+                        };
 
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-text-secondary">Type de tache</p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {PLAN_ACTIONABLE_KIND_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setTaskDraft((current) => ({
-                            ...current,
-                            itemKind: option.value,
-                            itemSubkind: current.itemKind === option.value ? (current.itemSubkind ?? null) : null,
-                          }))
+                        if (nextDefaultKind) {
+                          nextDraft.itemKind = nextDefaultKind;
+                        } else {
+                          delete nextDraft.itemKind;
                         }
-                        className={`rounded-radius-button border px-3 py-2 text-left text-sm transition-all ${
-                          option.badgeClass
-                        } ${taskDraftKind === option.value ? "ring-2 ring-brand-primary" : "opacity-90 hover:opacity-100"}`}
-                      >
-                        <span className="block font-semibold">{option.label}</span>
-                        <span className="block text-xs text-text-secondary">{option.description}</span>
-                      </button>
-                    ))}
-                  </div>
+
+                        return nextDraft;
+                      })
+                    }
+                  >
+                    {taskScope === "all" ? (
+                      <>
+                        {schoolSelectableCategories.length > 0 ? (
+                          <optgroup label="Scolarite">
+                            {schoolSelectableCategories.map((category) => {
+                              const categoryCode = parseCategoryCode(category.code ?? null);
+                              if (!categoryCode) {
+                                return null;
+                              }
+
+                              return (
+                                <option key={category.id} value={category.id}>
+                                  {getCategoryCodeLabel(categoryCode)}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ) : null}
+                        {extraSelectableCategories.length > 0 ? (
+                          <optgroup label="Vie quotidienne & extras">
+                            {extraSelectableCategories.map((category) => {
+                              const categoryCode = parseCategoryCode(category.code ?? null);
+                              if (!categoryCode) {
+                                return null;
+                              }
+
+                              return (
+                                <option key={category.id} value={category.id}>
+                                  {getCategoryCodeLabel(categoryCode)}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ) : null}
+                      </>
+                    ) : (
+                      scopedSelectableCategories.map((category) => {
+                        const categoryCode = parseCategoryCode(category.code ?? null);
+                        if (!categoryCode) {
+                          return null;
+                        }
+
+                        return (
+                          <option key={category.id} value={category.id}>
+                            {getCategoryCodeLabel(categoryCode)}
+                          </option>
+                        );
+                      })
+                    )}
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
@@ -892,10 +1067,22 @@ export function DayTemplateEditor({
                       setTaskDraft((current) => ({ ...current, itemSubkind: event.target.value || null }))
                     }
                     list={taskSubkindListId}
+                    autoComplete="off"
                     maxLength={60}
-                    placeholder="ex: devoirs, sport, jeu video..."
+                    placeholder={
+                      taskDraftCategory
+                        ? "Ex: Mathematiques, Chorale, Film..."
+                        : "Choisis d'abord une categorie"
+                    }
                   />
-                  <datalist id={taskSubkindListId}>
+                  <p data-testid="task-subkind-hint" className="text-xs text-text-secondary">
+                    {!taskDraftCategory
+                      ? "Choisis d'abord une categorie."
+                      : taskSubkindSuggestions.length === 0
+                        ? "Sous-type libre (optionnel)."
+                        : "Sous-type (optionnel) - suggere selon la categorie."}
+                  </p>
+                  <datalist id={taskSubkindListId} data-testid="task-subkind-suggestions">
                     {taskSubkindSuggestions.map((subkind) => (
                       <option key={subkind} value={subkind} />
                     ))}
@@ -952,6 +1139,11 @@ export function DayTemplateEditor({
                   </div>
                 </div>
 
+                <p className="text-xs text-text-secondary">
+                  Cette mission apparaitra dans le bloc{" "}
+                  {getChildTimeBlockLabel(taskDraftRecommendedChildTimeBlockId)} pour l&apos;enfant.
+                </p>
+
                 <div className="space-y-1">
                   <label htmlFor="task-description" className="text-sm font-semibold text-text-secondary">
                     Description
@@ -964,6 +1156,24 @@ export function DayTemplateEditor({
                       setTaskDraft((current) => ({ ...current, description: event.target.value }))
                     }
                     placeholder="Consigne ou contexte de la tache"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-text-secondary">Instructions (rich text)</label>
+                  <p className="text-xs text-text-secondary">
+                    Source principale affichee a Ezra dans le mode mission et Focus.
+                  </p>
+                  <RichTextEditor
+                    valueHtml={taskDraft.instructionsHtml ?? ""}
+                    onChangeHtml={(html) =>
+                      setTaskDraft((current) => ({
+                        ...current,
+                        instructionsHtml: html || null,
+                      }))
+                    }
+                    placeholder="Ex: Commence par lire la consigne, puis coche chaque etape."
+                    disabled={isPending}
                   />
                 </div>
 
@@ -1004,15 +1214,15 @@ export function DayTemplateEditor({
             )}
           </CardContent>
         </Card>
-      </div>
+      </div> : null}
 
-      <Card>
+      {showStructureSections ? <Card>
         <CardHeader>
-          <CardTitle>Previsualisation de la journee</CardTitle>
-          <CardDescription>Plages structurelles puis taches.</CardDescription>
+          <CardTitle>Previsualisation de la structure</CardTitle>
+          <CardDescription>Plages structurelles de la journee type.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {orderedBlocks.length === 0 && orderedTasks.length === 0 ? (
+          {orderedBlocks.length === 0 ? (
             <p className="text-sm text-text-secondary">Aucun contenu planifie.</p>
           ) : (
             <>
@@ -1027,39 +1237,13 @@ export function DayTemplateEditor({
                     {block.startTime} - {block.endTime}
                   </p>
                   <p className="font-semibold text-text-primary">{blockLabel(block)}</p>
+                  <p className="text-xs text-text-muted">Bloc enfant : {resolveBlockChildLabel(block)}</p>
                 </div>
-              ))}
-
-              {orderedTasks.map((task) => (
-                (() => {
-                  const previewTaskKind = task.itemKind ?? resolveTaskKind(categories, task.categoryId);
-                  const previewTaskSubkind = task.itemSubkind?.trim() ? task.itemSubkind.trim() : null;
-
-                  return (
-                    <div
-                      key={`preview-task-${task.id}`}
-                      className={`rounded-radius-button border px-3 py-2 ${previewColor(task)}`}
-                    >
-                      <p className="text-xs text-text-secondary">
-                        {task.startTime} - {task.endTime}
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        <Badge className={taskKindBadgeClass(previewTaskKind)}>
-                          {getPlanActionableKindLabel(previewTaskKind)}
-                        </Badge>
-                        {previewTaskSubkind ? (
-                          <Badge className="bg-bg-surface-hover text-text-secondary">{previewTaskSubkind}</Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 font-semibold text-text-primary">{task.title}</p>
-                    </div>
-                  );
-                })()
               ))}
             </>
           )}
         </CardContent>
-      </Card>
+      </Card> : null}
     </div>
   );
 }

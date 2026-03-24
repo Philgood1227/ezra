@@ -6,7 +6,7 @@ Le shell parent a ete refondu pour offrir une interface claire, calme et efficac
 
 Objectifs:
 
-- une navigation courte et lisible (3 sections)
+- une navigation courte et lisible (sections principales + hubs)
 - des signaux rapides (badges de pending)
 - une structure responsive robuste (desktop, tablette, mobile)
 - un comportement coherent en mode clair/sombre
@@ -26,28 +26,43 @@ Source unique de verite: `src/config/parent-nav.tsx`.
 
 Sections:
 
-1. Tableau de bord
+1. Essentiel
    - Tableau de bord (`/parent/dashboard`)
    - Notifications (`/parent/notifications`)
    - Alarmes (`/parent/alarms`)
 2. Organisation
-   - Journees types (`/parent/day-templates`)
-   - Categories (`/parent/categories`)
-   - Carnet scolaire (`/parent/school-diary`)
-   - Checklists (`/parent/checklists`)
+   - Modules organisation (`/parent/organization`)
+   : hub vers Journees types, Carnet scolaire, Checklists, Categories.
+3. Apprentissages
+   - Modules apprentissages (`/parent/learning`)
+   : hub vers Bibliotheque, Generer (IA), Livres & fiches, Connaissances.
+4. Vie quotidienne
    - Repas (`/parent/meals`)
-   - Connaissances (`/parent/knowledge`)
-3. Vie familiale & Motivation
-   - Succes & badges (`/parent/achievements`)
-   - Recompenses (`/parent/rewards`)
-   - Gamification (`/parent/gamification`)
-   - Cinema (`/parent/cinema`)
-   - Emotions (`/parent/dashboard#emotions`)
+5. Vie familiale & motivation
+   - Modules famille (`/parent/family`)
+   : hub vers Succes & badges, Recompenses, Gamification, Cinema.
 
 Footer:
 
 - Parametres (`/parent/settings`)
 - Deconnexion
+
+## Navigation contextuelle par module
+
+Source dediee: `src/lib/navigation/parent-module-nav.ts`.
+
+Ce mapping ajoute une navigation horizontale sous le header (`ParentModuleSubnav`) selon le module actif:
+
+1. Essentiel: dashboard, notifications, alarmes
+2. Organisation: organisation, journees types, carnet scolaire, checklists, categories
+3. Apprentissages: hub + bibliotheque + generer (IA) + livres & fiches + connaissances
+4. Vie familiale: modules famille, repas, succes, recompenses
+
+Regles:
+
+1. la barre est contextuelle (cachee si aucune section ne correspond au pathname)
+2. les boutons actifs reutilisent `matchPrefixes` / `href` pour couvrir les sous-routes
+3. le style reste coherent DS (`premium` actif, `glass` inactif)
 
 ## ParentShell
 
@@ -70,6 +85,13 @@ Le shell applique:
 - `PageTransition` sur la zone de contenu
 - lien "Aller au contenu principal" pour navigation clavier
 
+Le shell integre aussi un drawer global d'actions rapides:
+
+- composant: `src/components/layout/parent-quick-actions-drawer.tsx`
+- ouverture via bouton "Actions rapides" dans le header
+- fermeture via overlay, bouton fermer ou touche Escape
+- contenu: raccourcis par module (meme source `parent-module-nav.ts`)
+
 ## Header and breadcrumb
 
 Header parent:
@@ -77,6 +99,7 @@ Header parent:
 - titre de page derive du pathname
 - fil d'ariane dynamique
 - actions rapides (`Voir comme l'enfant`)
+- bouton "Actions rapides" (ouvre le drawer de raccourcis)
 - `ThemeToggle`
 - avatar parent + deconnexion
 

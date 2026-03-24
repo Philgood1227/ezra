@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/components/ds";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CategoryIcon, Input } from "@/components/ds";
 import { ParentFeedbackBanner } from "@/components/feedback/parent-feedback-banner";
 import {
   createCategoryAction,
@@ -12,13 +12,19 @@ import {
 } from "@/lib/actions/day-templates";
 import {
   CATEGORY_COLOR_OPTIONS,
+  CATEGORY_ICON_OPTIONS,
   getCategoryColorOption,
   getPlanActionableKindLabel,
+  parseCategoryIconKey,
   PLAN_ACTIONABLE_KIND_OPTIONS,
 } from "@/lib/day-templates/constants";
 import { useFormField } from "@/lib/hooks/useFormField";
 import { cn } from "@/lib/utils";
-import type { PlanActionableKind, TaskCategorySummary } from "@/lib/day-templates/types";
+import type {
+  CategoryIconKey,
+  PlanActionableKind,
+  TaskCategorySummary,
+} from "@/lib/day-templates/types";
 
 interface CategoriesManagerProps {
   categories: TaskCategorySummary[];
@@ -26,37 +32,22 @@ interface CategoriesManagerProps {
 
 interface CategoryDraft {
   name: string;
-  icon: string;
-  colorKey: string;
+  icon: CategoryIconKey;
+  colorKey: TaskCategorySummary["colorKey"];
   defaultItemKind: PlanActionableKind;
 }
 
-const DEFAULT_COLOR_KEY = CATEGORY_COLOR_OPTIONS[0]?.key ?? "category-routine";
-const DEFAULT_ICON = "🧩";
+const DEFAULT_COLOR_KEY: TaskCategorySummary["colorKey"] =
+  CATEGORY_COLOR_OPTIONS[0]?.key ?? "category-routine";
+const DEFAULT_ICON_KEY: CategoryIconKey = "routine";
 const DEFAULT_ITEM_KIND: PlanActionableKind = "mission";
 
 const EMPTY_DRAFT: CategoryDraft = {
   name: "",
-  icon: DEFAULT_ICON,
+  icon: DEFAULT_ICON_KEY,
   colorKey: DEFAULT_COLOR_KEY,
   defaultItemKind: DEFAULT_ITEM_KIND,
 };
-
-interface EmojiOption {
-  emoji: string;
-  label: string;
-}
-
-const EMOJI_OPTIONS: EmojiOption[] = [
-  { emoji: "🧩", label: "Routine" },
-  { emoji: "📚", label: "Ecole" },
-  { emoji: "🍽️", label: "Repas" },
-  { emoji: "⚽", label: "Sport" },
-  { emoji: "🛏️", label: "Sommeil" },
-  { emoji: "🧘", label: "Calme" },
-  { emoji: "🚌", label: "Transport" },
-  { emoji: "🎨", label: "Creatif" },
-];
 
 function parseRequired(value: string, label: string): string | null {
   return value.trim().length > 0 ? null : `${label} requis`;
@@ -64,6 +55,39 @@ function parseRequired(value: string, label: string): string | null {
 
 function categoryKind(value: PlanActionableKind | null | undefined): PlanActionableKind {
   return value ?? DEFAULT_ITEM_KIND;
+}
+
+function IconPicker({
+  value,
+  onChange,
+}: {
+  value: CategoryIconKey;
+  onChange: (next: CategoryIconKey) => void;
+}): React.JSX.Element {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {CATEGORY_ICON_OPTIONS.map((option) => {
+        const active = option.key === value;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onChange(option.key)}
+            className={cn(
+              "flex min-h-touch-sm items-center gap-2 rounded-radius-button border px-2.5 py-2 text-left text-xs font-semibold transition-all",
+              active
+                ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-2 ring-brand-primary"
+                : "border-border-default bg-bg-surface-hover/60 text-text-secondary hover:bg-bg-surface-hover",
+            )}
+            aria-label={`Choisir ${option.label}`}
+          >
+            <CategoryIcon iconKey={option.key} className="size-4" />
+            <span className="truncate">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function CategoriesManager({ categories }: CategoriesManagerProps): React.JSX.Element {
@@ -77,10 +101,6 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
   const nameField = useFormField({
     initialValue: draft.name,
     validate: (value) => parseRequired(value, "Nom"),
-  });
-  const iconField = useFormField({
-    initialValue: draft.icon,
-    validate: (value) => parseRequired(value, "Icone"),
   });
 
   const sortedCategories = useMemo(
@@ -97,11 +117,9 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
     setFeedback(null);
 
     const nameError = nameField.validateNow();
-    const iconError = iconField.validateNow();
     nameField.markTouched();
-    iconField.markTouched();
 
-    if (nameError || iconError || !draft.colorKey) {
+    if (nameError) {
       setFeedback({ tone: "error", message: "Veuillez corriger les champs requis." });
       return;
     }
@@ -109,7 +127,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
     startTransition(async () => {
       const result = await createCategoryAction({
         name: draft.name.trim(),
-        icon: draft.icon.trim(),
+        icon: draft.icon,
         colorKey: draft.colorKey,
         defaultItemKind: draft.defaultItemKind,
       });
@@ -122,7 +140,6 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
       setFeedback({ tone: "success", message: "Categorie ajoutee." });
       setDraft(EMPTY_DRAFT);
       nameField.reset("");
-      iconField.reset(DEFAULT_ICON);
       router.refresh();
     });
   }
@@ -161,8 +178,8 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
       return;
     }
 
-    if (!editingDraft.name.trim() || !editingDraft.icon.trim() || !editingDraft.colorKey) {
-      setFeedback({ tone: "error", message: "Nom, icone et couleur sont requis." });
+    if (!editingDraft.name.trim()) {
+      setFeedback({ tone: "error", message: "Le nom de categorie est requis." });
       return;
     }
 
@@ -170,7 +187,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
     startTransition(async () => {
       const result = await updateCategoryAction(editingId, {
         name: editingDraft.name.trim(),
-        icon: editingDraft.icon.trim(),
+        icon: editingDraft.icon,
         colorKey: editingDraft.colorKey,
         defaultItemKind: editingDraft.defaultItemKind,
       });
@@ -218,74 +235,39 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={submitCreate}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label htmlFor="category-name" className="text-sm font-semibold text-text-secondary">
-                  Nom
-                </label>
-                <Input
-                  id="category-name"
-                  value={draft.name}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    updateDraft({ name: value });
-                    nameField.setValue(value);
-                  }}
-                  onBlur={nameField.markTouched}
-                  errorMessage={nameField.hasError ? nameField.error ?? undefined : undefined}
-                  successMessage={nameField.isValid ? "Champ valide" : undefined}
-                  placeholder="Routine du soir"
-                  required
-                />
-              </div>
+            <div className="space-y-1">
+              <label htmlFor="category-name" className="text-sm font-semibold text-text-secondary">
+                Nom
+              </label>
+              <Input
+                id="category-name"
+                value={draft.name}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  updateDraft({ name: value });
+                  nameField.setValue(value);
+                }}
+                onBlur={nameField.markTouched}
+                errorMessage={nameField.hasError ? nameField.error ?? undefined : undefined}
+                successMessage={nameField.isValid ? "Champ valide" : undefined}
+                placeholder="Routine du soir"
+                required
+              />
+            </div>
 
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Icone</p>
+              <IconPicker value={draft.icon} onChange={(icon) => updateDraft({ icon })} />
               <div className="space-y-1">
-                <label htmlFor="category-icon" className="text-sm font-semibold text-text-secondary">
-                  Icone
+                <label htmlFor="category-icon" className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Cle icone (compatibilite)
                 </label>
                 <Input
                   id="category-icon"
                   value={draft.icon}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    updateDraft({ icon: value });
-                    iconField.setValue(value);
-                  }}
-                  onBlur={iconField.markTouched}
-                  errorMessage={iconField.hasError ? iconField.error ?? undefined : undefined}
-                  successMessage={iconField.isValid ? "Champ valide" : undefined}
-                  placeholder={DEFAULT_ICON}
-                  maxLength={4}
-                  required
+                  onChange={(event) => updateDraft({ icon: parseCategoryIconKey(event.target.value) })}
+                  placeholder="school"
                 />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Suggestions d&apos;icones</p>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-                {EMOJI_OPTIONS.map((option) => {
-                  const active = draft.icon === option.emoji;
-                  return (
-                    <button
-                      key={option.emoji}
-                      type="button"
-                      onClick={() => {
-                        updateDraft({ icon: option.emoji });
-                        iconField.setValue(option.emoji);
-                      }}
-                      className={cn(
-                        "h-touch-sm rounded-radius-button border text-xl transition-all",
-                        active
-                          ? "border-brand-primary bg-brand-primary/15 text-brand-primary"
-                          : "border-border-default bg-bg-surface-hover/60 text-text-secondary hover:bg-bg-surface-hover",
-                      )}
-                      aria-label={`Choisir ${option.label}`}
-                    >
-                      {option.emoji}
-                    </button>
-                  );
-                })}
               </div>
             </div>
 
@@ -340,7 +322,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
                 Ajouter
               </Button>
               <Badge className={previewColor.badgeClass}>
-                {draft.icon || "*"} {draft.name || "Nouvelle categorie"}
+                <CategoryIcon iconKey={draft.icon} className="size-4" /> {draft.name || "Nouvelle categorie"}
               </Badge>
               <Badge className={PLAN_ACTIONABLE_KIND_OPTIONS.find((option) => option.value === draft.defaultItemKind)?.badgeClass}>
                 {getPlanActionableKindLabel(draft.defaultItemKind)}
@@ -380,16 +362,15 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
                         }
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-text-muted">Icone</label>
-                      <Input
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Icone</p>
+                      <IconPicker
                         value={editingDraft.icon}
-                        onChange={(event) =>
-                          setEditingDraft((current) => ({ ...current, icon: event.target.value }))
-                        }
-                        maxLength={4}
+                        onChange={(icon) => setEditingDraft((current) => ({ ...current, icon }))}
                       />
                     </div>
+
                     <div className="grid grid-cols-2 gap-2">
                       {CATEGORY_COLOR_OPTIONS.map((option) => (
                         <button
@@ -408,6 +389,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
                         </button>
                       ))}
                     </div>
+
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Type par defaut</p>
                       <div className="grid gap-2">
@@ -429,6 +411,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
                         ))}
                       </div>
                     </div>
+
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" loading={isPending} onClick={saveEdit}>
                         Enregistrer
@@ -442,7 +425,7 @@ export function CategoriesManager({ categories }: CategoriesManagerProps): React
                   <>
                     <div className="flex items-center justify-between gap-2">
                       <Badge className={color.badgeClass}>
-                        {category.icon} {category.name}
+                        <CategoryIcon iconKey={category.icon} className="size-4" /> {category.name}
                       </Badge>
                       <div
                         className="size-4 rounded-radius-pill border border-border-default bg-bg-surface-hover"

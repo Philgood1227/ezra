@@ -1,6 +1,8 @@
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { getDemoTaskInstanceById } from "@/lib/demo/gamification-store";
 import { listDemoCategories } from "@/lib/demo/day-templates-store";
+import { parseCategoryColorKey, parseCategoryIconKey, resolveCategoryCode } from "@/lib/day-templates/constants";
+import { resolveTaskInstructionsHtml } from "@/lib/day-templates/instructions";
 import { normalizeTimeLabel } from "@/lib/day-templates/time";
 import type { TaskInstanceSummary } from "@/lib/day-templates/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -11,6 +13,11 @@ import type { Database } from "@/types/database";
 type TaskInstanceRow = Database["public"]["Tables"]["task_instances"]["Row"];
 type TemplateTaskRow = Database["public"]["Tables"]["template_tasks"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["task_categories"]["Row"];
+
+function normalizeOptionalSubkind(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 export async function getTaskInstanceByIdForCurrentProfile(
   instanceId: string,
@@ -90,7 +97,7 @@ export async function getTaskInstanceByIdForCurrentProfile(
     childProfileId: row.child_profile_id,
     templateTaskId: row.template_task_id,
     itemKind: row.item_kind ?? taskRow.item_kind ?? categoryRow.default_item_kind ?? "mission",
-    itemSubkind: row.item_subkind ?? taskRow.item_subkind ?? null,
+    itemSubkind: normalizeOptionalSubkind(taskRow.item_subkind),
     assignedProfileId,
     assignedProfileDisplayName: assignedProfile?.display_name ?? null,
     assignedProfileRole: assignedProfile?.role ?? null,
@@ -102,13 +109,24 @@ export async function getTaskInstanceByIdForCurrentProfile(
     pointsEarned: row.points_earned,
     title: taskRow.title,
     description: taskRow.description,
+    instructionsHtml: resolveTaskInstructionsHtml({
+      instructionsHtml: taskRow.instructions_html,
+      description: taskRow.description,
+    }),
     sortOrder: taskRow.sort_order,
     category: {
       id: categoryRow.id,
       familyId: categoryRow.family_id,
+      code: resolveCategoryCode({
+        code: categoryRow.code,
+        name: categoryRow.name,
+        iconKey: categoryRow.icon,
+        colorKey: categoryRow.color_key,
+        defaultItemKind: categoryRow.default_item_kind,
+      }),
       name: categoryRow.name,
-      icon: categoryRow.icon,
-      colorKey: categoryRow.color_key,
+      icon: parseCategoryIconKey(categoryRow.icon),
+      colorKey: parseCategoryColorKey(categoryRow.color_key),
       defaultItemKind: categoryRow.default_item_kind,
     },
   };

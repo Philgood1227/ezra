@@ -3,19 +3,29 @@ import { cn } from "@/lib/utils";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   interactive?: boolean;
+  surface?: "default" | "glass" | "child";
 }
 
 export function Card({
   className,
   interactive,
+  surface = "default",
   ...props
 }: CardProps): React.JSX.Element {
   const isInteractive = interactive ?? typeof props.onClick === "function";
 
+  const surfaceClass =
+    surface === "glass"
+      ? "border-brand-100/70 bg-bg-surface/76 shadow-glass backdrop-blur-md"
+      : surface === "child"
+        ? "border-brand-100/80 bg-gradient-to-br from-brand-50/55 via-bg-surface/90 to-bg-surface/88 shadow-elevated backdrop-blur-md"
+        : "border-border-subtle bg-bg-surface/80 shadow-card backdrop-blur-sm";
+
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border-subtle bg-bg-surface/80 p-5 shadow-card backdrop-blur-sm transition-all duration-200",
+        "rounded-2xl border p-5 transition-all duration-200",
+        surfaceClass,
         isInteractive && "hover:-translate-y-0.5 hover:bg-bg-surface hover:shadow-glass",
         className,
       )}

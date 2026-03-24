@@ -28,6 +28,7 @@ export interface UpdateTaskStatusResult {
 }
 
 function revalidateTaskPaths(): void {
+  revalidatePath("/child");
   revalidatePath("/child/my-day");
   revalidatePath("/parent/dashboard");
 }

@@ -7,6 +7,7 @@ import { getOrCreateDemoDailyPoints, listDemoTaskInstances } from "@/lib/demo/ga
 import { listDemoCategories } from "@/lib/demo/day-templates-store";
 import { listDemoSchoolDiaryEntries } from "@/lib/demo/school-diary-store";
 import { getDateKeyFromDate } from "@/lib/day-templates/date";
+import { parseCategoryColorKey, parseCategoryIconKey, resolveCategoryCode } from "@/lib/day-templates/constants";
 import type { DailyPointsSummary, TaskInstanceSummary } from "@/lib/day-templates/types";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -79,9 +80,16 @@ function mapTaskRowsToSummaries(input: {
       category: {
         id: category.id,
         familyId: category.family_id,
+        code: resolveCategoryCode({
+          code: category.code,
+          name: category.name,
+          iconKey: category.icon,
+          colorKey: category.color_key,
+          defaultItemKind: category.default_item_kind,
+        }),
         name: category.name,
-        icon: category.icon,
-        colorKey: category.color_key,
+        icon: parseCategoryIconKey(category.icon),
+        colorKey: parseCategoryColorKey(category.color_key),
         defaultItemKind: category.default_item_kind,
       },
     } satisfies TaskInstanceSummary);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+﻿import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DayTimeline } from "@/components/timeline/day-timeline";
 import type { DayContextSummary, DayTemplateBlockSummary, TaskInstanceSummary } from "@/lib/day-templates/types";
@@ -22,7 +22,7 @@ const tasks: TaskInstanceSummary[] = [
       id: "cat-1",
       familyId: "family-1",
       name: "Routine",
-      icon: "🧩",
+      icon: "routine",
       colorKey: "category-routine",
     },
   },
@@ -44,7 +44,7 @@ const tasks: TaskInstanceSummary[] = [
       id: "cat-2",
       familyId: "family-1",
       name: "Ecole",
-      icon: "📚",
+      icon: "school",
       colorKey: "category-ecole",
     },
   },
@@ -125,3 +125,4 @@ describe("DayTimeline", () => {
     expect(onStatusChange).toHaveBeenCalledWith("instance-2", "en_cours");
   });
 });
+

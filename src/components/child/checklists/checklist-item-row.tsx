@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface ChecklistItemRowProps {
   label: string;
+  description?: string | null;
   isChecked: boolean;
   onToggle: () => void;
   disabled?: boolean;
@@ -14,6 +15,7 @@ interface ChecklistItemRowProps {
 
 export function ChecklistItemRow({
   label,
+  description = null,
   isChecked,
   onToggle,
   disabled = false,
@@ -62,14 +64,17 @@ export function ChecklistItemRow({
           </svg>
         </motion.span>
 
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-sm font-semibold transition-[color,text-decoration-color] duration-200",
-            isChecked ? "text-text-muted line-through decoration-text-muted" : "text-text-primary",
-          )}
-        >
-          {label}
-        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              "truncate text-base font-semibold transition-[color,text-decoration-color] duration-200",
+              isChecked ? "text-text-muted line-through decoration-text-muted" : "text-text-primary",
+            )}
+          >
+            {label}
+          </p>
+          {description ? <p className="truncate text-base text-text-secondary">{description}</p> : null}
+        </div>
       </button>
     </ScaleOnTap>
   );

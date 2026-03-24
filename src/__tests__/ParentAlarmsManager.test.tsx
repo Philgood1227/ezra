@@ -86,4 +86,26 @@ describe("ParentAlarmsManager", () => {
       });
     });
   });
+
+  it("demande confirmation avant suppression d'une alarme", async () => {
+    deleteAlarmRuleAction.mockResolvedValue({ success: true });
+
+    render(<ParentAlarmsManager childName="Ezra" rules={rules} events={events} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+
+    expect(screen.getByText("Supprimer cette alarme ?")).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Supprimer" });
+    const confirmDeleteButton = deleteButtons[1];
+    if (!confirmDeleteButton) {
+      throw new Error("Confirm delete button not found.");
+    }
+
+    fireEvent.click(confirmDeleteButton);
+
+    await waitFor(() => {
+      expect(deleteAlarmRuleAction).toHaveBeenCalledWith({ ruleId: "rule-1" });
+    });
+  });
 });

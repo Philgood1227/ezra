@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { getActivityIconByColorKey } from "@/components/child/icons/child-premium-icons";
-import { Badge, Button, Card, CardContent } from "@/components/ds";
+import { Badge, Button, Card, CardContent, resolveCategoryIcon } from "@/components/ds";
 import { ScaleOnTap } from "@/components/motion";
 import { getCategoryVisual } from "@/components/timeline/category-visuals";
 import { PointsFlyUp } from "@/components/timeline/points-fly-up";
-import type { TaskInstanceStatus } from "@/lib/day-templates/types";
+import type { TaskCategorySummary, TaskInstanceStatus } from "@/lib/day-templates/types";
 import { cn } from "@/lib/utils";
 
 interface TimelineTaskCardProps {
@@ -15,7 +14,7 @@ interface TimelineTaskCardProps {
   title: string;
   startTime: string;
   endTime: string;
-  category: { name: string; icon: string; colorKey: string };
+  category: Pick<TaskCategorySummary, "name" | "icon" | "colorKey">;
   assignedTo?: { displayName: string; role: string } | null;
   status: TaskInstanceStatus;
   pointsBase: number;
@@ -99,7 +98,7 @@ export function TimelineTaskCard({
 }: TimelineTaskCardProps): React.JSX.Element {
   const prefersReducedMotion = useReducedMotion();
   const categoryVisual = getCategoryVisual(category.colorKey);
-  const CategoryIcon = getActivityIconByColorKey(category.colorKey);
+  const CategoryIcon = resolveCategoryIcon(category.icon);
   const isLate = status === "a_faire" && isPast && !isCurrent;
   const effectiveStatus: TaskInstanceStatus = isLate ? "en_retard" : status;
   const resolvedDensity = density ?? (compact ? "compact" : "full");

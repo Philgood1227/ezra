@@ -113,8 +113,9 @@ describe("ParentDashboard", () => {
     expect(screen.getByText(/Taches completees cette semaine/i)).toBeInTheDocument();
     expect(screen.getByText(/Points cumules cette semaine/i)).toBeInTheDocument();
     expect(screen.getByText(/Humeur de la semaine/i)).toBeInTheDocument();
-    expect(screen.getByText(/Carnet scolaire/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Carnet scolaire$/i })).toBeInTheDocument();
     expect(screen.getByText(/2 entree\(s\) sur la semaine/i)).toBeInTheDocument();
+    expect(screen.getByText(/Priorites parent/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Modules organisation/i })).toBeInTheDocument();
   });
 });
-

@@ -1,12 +1,12 @@
 ﻿import { describe, expect, it } from "vitest";
 import { getCurrentAndNextTasks, getNowCursorPositionPercent, getTaskPhase } from "@/lib/day-templates/timeline";
-import type { TemplateTaskSummary } from "@/lib/day-templates/types";
+import type { TaskCategorySummary, TemplateTaskSummary } from "@/lib/day-templates/types";
 
-const category = {
+const category: TaskCategorySummary = {
   id: "cat-1",
   familyId: "family-1",
   name: "Routine",
-  icon: "🧩",
+  icon: "routine",
   colorKey: "category-routine",
 };
 
@@ -68,3 +68,4 @@ describe("timeline helpers", () => {
     expect(getNowCursorPositionPercent(13 * 60 + 30, 6 * 60, 21 * 60)).toBeCloseTo(50);
   });
 });
+

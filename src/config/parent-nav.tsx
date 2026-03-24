@@ -14,6 +14,7 @@ export type ParentNavItem = {
   href?: string;
   badgeKey?: ParentNavBadgeKey;
   matchPrefixes?: string[];
+  excludePrefixes?: string[];
   children?: ParentNavItem[];
 };
 
@@ -62,32 +63,6 @@ function TemplateIcon({ className, active = false }: ParentNavIconProps): React.
   );
 }
 
-function TagsIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M4 9.5V5.5h4l9.5 9.5-4 4L4 9.5Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
-      <circle cx="8" cy="8" r="1" fill={active ? "rgb(var(--color-text-inverse))" : "currentColor"} />
-    </svg>
-  );
-}
-
-function NotebookIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="5" y="3.5" width="14" height="17" rx="2.5" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <path d="M9 7.5h6M9 10.5h6M9 13.5h4.5" fill="none" stroke={active ? "rgb(var(--color-text-inverse))" : "currentColor"} strokeLinecap="round" strokeWidth="1.7" />
-    </svg>
-  );
-}
-
-function ChecklistIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="4.5" y="4.5" width="15" height="15" rx="3" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <path d="m8.3 11.6 1.8 1.8 4.1-4.1M8.3 15.1h7.2" fill="none" stroke={active ? "rgb(var(--color-text-inverse))" : "currentColor"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-    </svg>
-  );
-}
 
 function MealIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
   return (
@@ -107,48 +82,49 @@ function KnowledgeIcon({ className, active = false }: ParentNavIconProps): React
   );
 }
 
+function LibraryIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M5.5 5.5A2.5 2.5 0 0 1 8 3h4v18H8a2.5 2.5 0 0 1-2.5-2.5v-13Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M18.5 5.5A2.5 2.5 0 0 0 16 3h-4v18h4a2.5 2.5 0 0 0 2.5-2.5v-13Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 8.5h2.5M9 11h2.5M14.5 8.5H17M14.5 11H17" fill="none" stroke={active ? "rgb(var(--color-text-inverse))" : "currentColor"} strokeLinecap="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function GenerateIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M12 4.5 13.8 9l4.7 1.2-3.4 3 .5 4.8L12 15.7 7.4 18l.5-4.8-3.4-3L9.2 9 12 4.5Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
+      <path d="m17.8 4.8.6 1.5 1.6.4-1.2 1 .2 1.6-1.2-.8-1.5.8.2-1.6-1.2-1 1.6-.4.9-1.5Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function FichesIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 9h7M8.5 12h7M8.5 15h5" fill="none" stroke={active ? "rgb(var(--color-text-inverse))" : "currentColor"} strokeLinecap="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function ResourcesIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path d="M4.5 6.5A2.5 2.5 0 0 1 7 4h2.5v16H7a2.5 2.5 0 0 1-2.5-2.5v-11Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9.5 4h4.5v16H9.5M14 4h3a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 17 20h-3" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7.5 8h2M7.5 11h2M15 8h1.5M15 11h1.5" fill="none" stroke={active ? "rgb(var(--color-text-inverse))" : "currentColor"} strokeLinecap="round" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 function BadgeIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <circle cx="12" cy="10" r="5.5" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
       <path d="M8.5 15.5 7 20l5-2.7L17 20l-1.5-4.5" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function RewardIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V11H4V8.5Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5.5 11v2.5A3.5 3.5 0 0 0 9 17h6a3.5 3.5 0 0 0 3.5-3.5V11M12 6v11" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function ChartIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M4.5 19.5h15" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-      <rect x="6.5" y="11" width="2.8" height="6.5" rx="1" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <rect x="10.9" y="8" width="2.8" height="9.5" rx="1" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <rect x="15.3" y="5" width="2.8" height="12.5" rx="1" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function CinemaIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="4" y="6" width="16" height="12" rx="2.5" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" />
-      <path d="m10 9 5 3-5 3Z" fill={active ? "rgb(var(--color-text-inverse))" : "currentColor"} />
-    </svg>
-  );
-}
-
-function HeartIcon({ className, active = false }: ParentNavIconProps): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path d="M12 20.2 5.4 13.8a4.5 4.5 0 0 1 6.4-6.4L12 8l.2-.6a4.5 4.5 0 0 1 6.4 6.4L12 20.2Z" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
     </svg>
   );
 }
@@ -164,8 +140,8 @@ function SettingsIcon({ className, active = false }: ParentNavIconProps): React.
 
 export const parentNavSections: ParentNavSection[] = [
   {
-    id: "dashboard",
-    label: "Tableau de bord",
+    id: "overview",
+    label: "Essentiel",
     items: [
       { id: "dashboard", label: "Tableau de bord", icon: DashboardIcon, href: "/parent/dashboard" },
       { id: "notifications", label: "Notifications", icon: BellIcon, href: "/parent/notifications", badgeKey: "notifications" },
@@ -173,26 +149,100 @@ export const parentNavSections: ParentNavSection[] = [
     ],
   },
   {
-    id: "organization",
+    id: "planning",
     label: "Organisation",
     items: [
-      { id: "day-templates", label: "Journées types", icon: TemplateIcon, href: "/parent/day-templates" },
-      { id: "categories", label: "Catégories", icon: TagsIcon, href: "/parent/categories" },
-      { id: "school-diary", label: "Carnet scolaire", icon: NotebookIcon, href: "/parent/school-diary", badgeKey: "schoolDiary" },
-      { id: "checklists", label: "Checklists", icon: ChecklistIcon, href: "/parent/checklists", badgeKey: "checklists" },
-      { id: "meals", label: "Repas", icon: MealIcon, href: "/parent/meals" },
-      { id: "knowledge", label: "Connaissances", icon: KnowledgeIcon, href: "/parent/knowledge" },
+      {
+        id: "organization-hub",
+        label: "Modules organisation",
+        icon: TemplateIcon,
+        href: "/parent/organization",
+        badgeKey: "checklists",
+        matchPrefixes: [
+          "/parent/organization",
+          "/parent/day-templates",
+          "/parent/weekly-tasks",
+          "/parent/school-diary",
+          "/parent/checklists",
+          "/parent/categories",
+        ],
+      },
     ],
   },
   {
-    id: "family-motivation",
-    label: "Vie familiale & Motivation",
+    id: "fiches",
+    label: "Fiches",
     items: [
-      { id: "achievements", label: "Succès & badges", icon: BadgeIcon, href: "/parent/achievements" },
-      { id: "rewards", label: "Récompenses", icon: RewardIcon, href: "/parent/rewards" },
-      { id: "gamification", label: "Gamification", icon: ChartIcon, href: "/parent/gamification" },
-      { id: "cinema", label: "Cinéma", icon: CinemaIcon, href: "/parent/cinema" },
-      { id: "emotions", label: "Émotions", icon: HeartIcon, href: "/parent/dashboard#emotions", matchPrefixes: ["/parent/dashboard"] },
+      {
+        id: "fiches-hub",
+        label: "Fiches",
+        icon: FichesIcon,
+        href: "/parent/fiches",
+        matchPrefixes: ["/parent/fiches"],
+      },
+    ],
+  },
+  {
+    id: "learning",
+    label: "Apprentissages",
+    items: [
+      {
+        id: "learning-hub",
+        label: "Modules apprentissages",
+        icon: LibraryIcon,
+        href: "/parent/learning",
+        matchPrefixes: [
+          "/parent/learning",
+          "/parent/revisions",
+          "/parent/resources/books",
+          "/parent/knowledge",
+        ],
+        children: [
+          {
+            id: "revisions-library",
+            label: "Bibliothèque",
+            icon: LibraryIcon,
+            href: "/parent/revisions",
+            excludePrefixes: ["/parent/revisions/generate"],
+          },
+          {
+            id: "revisions-books-resources",
+            label: "Livres & fiches",
+            icon: ResourcesIcon,
+            href: "/parent/resources/books",
+          },
+          {
+            id: "revisions-generate",
+            label: "Générer (IA)",
+            icon: GenerateIcon,
+            href: "/parent/revisions/generate",
+          },
+          {
+            id: "knowledge",
+            label: "Connaissances",
+            icon: KnowledgeIcon,
+            href: "/parent/knowledge",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "daily-life",
+    label: "Vie quotidienne",
+    items: [{ id: "meals", label: "Repas", icon: MealIcon, href: "/parent/meals" }],
+  },
+  {
+    id: "motivation",
+    label: "Vie familiale & motivation",
+    items: [
+      {
+        id: "family-hub",
+        label: "Modules famille",
+        icon: BadgeIcon,
+        href: "/parent/family",
+        matchPrefixes: ["/parent/family", "/parent/achievements", "/parent/rewards", "/parent/gamification", "/parent/cinema"],
+      },
     ],
   },
 ];
@@ -200,3 +250,5 @@ export const parentNavSections: ParentNavSection[] = [
 export const parentNavFooterItems: ParentNavItem[] = [
   { id: "settings", label: "Paramètres", icon: SettingsIcon, href: "/parent/settings" },
 ];
+
+

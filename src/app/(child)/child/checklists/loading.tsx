@@ -1,6 +1,20 @@
-import { ChildChecklistsView } from "@/components/child/checklists";
+import { ChildChecklistsPreparationView } from "@/components/child/checklists/child-checklists-preparation-view";
 
 export default function ChildChecklistsLoading(): React.JSX.Element {
-  return <ChildChecklistsView byDay={{ today: [], tomorrow: [] }} isLoading />;
-}
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
+  return (
+    <ChildChecklistsPreparationView
+      tomorrow={{
+        date: tomorrowDate,
+        dateKey: "",
+        dayTypeLabel: "Ecole",
+        firstTransitionLabel: null,
+        keyMoments: [],
+      }}
+      checklistInstances={[]}
+      isLoading
+    />
+  );
+}

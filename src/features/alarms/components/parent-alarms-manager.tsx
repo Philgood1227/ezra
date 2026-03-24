@@ -2,7 +2,18 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/components/ds";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ConfirmDialog,
+  Input,
+  Select,
+  TextArea,
+} from "@/components/ds";
 import { ParentFeedbackBanner } from "@/components/feedback/parent-feedback-banner";
 import {
   createAlarmRuleAction,
@@ -24,6 +35,7 @@ import {
   getDefaultAlarmInput,
   getModeDaysMask,
 } from "@/lib/domain/alarms";
+import { useParentFeedback } from "@/lib/hooks/useParentFeedback";
 
 interface ParentAlarmsManagerProps {
   childName: string;
@@ -144,10 +156,8 @@ export function ParentAlarmsManager({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{
-    tone: "success" | "error" | "info";
-    message: string;
-  } | null>(null);
+  const { feedback, showFeedback, clearFeedback } = useParentFeedback();
+  const [ruleToDelete, setRuleToDelete] = useState<AlarmRuleSummary | null>(null);
   const [draft, setDraft] = useState<AlarmDraft>(() => getInitialDraft());
 
   const sortedRules = useMemo(
@@ -193,7 +203,7 @@ export function ParentAlarmsManager({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    setFeedback(null);
+    clearFeedback();
     const payload = toAlarmInput(draft);
 
     startTransition(async () => {
@@ -202,92 +212,107 @@ export function ParentAlarmsManager({
         : await createAlarmRuleAction(payload);
 
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer l'alarme." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer l'alarme." });
         return;
       }
 
-      setFeedback({ tone: "success", message: editingRuleId ? "Alarme modifiee." : "Alarme creee." });
+      showFeedback({ tone: "success", message: editingRuleId ? "Alarme modifiee." : "Alarme creee." });
       resetDraft();
       router.refresh();
     });
   }
 
   function handleEdit(rule: AlarmRuleSummary): void {
-    setFeedback(null);
+    clearFeedback();
     setEditingRuleId(rule.id);
     setDraft(toDraft(rule));
   }
 
   function handleToggle(ruleId: string, enabled: boolean): void {
-    setFeedback(null);
+    clearFeedback();
     startTransition(async () => {
       const result = await toggleAlarmRuleEnabledAction({ ruleId, enabled });
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible de modifier l'alarme." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible de modifier l'alarme." });
         return;
       }
 
-      setFeedback({ tone: "success", message: enabled ? "Alarme activee." : "Alarme desactivee." });
+      showFeedback({ tone: "success", message: enabled ? "Alarme activee." : "Alarme desactivee." });
       router.refresh();
     });
   }
 
-  function handleDelete(ruleId: string): void {
-    if (!window.confirm("Supprimer cette alarme ?")) {
+  function handleRequestDelete(rule: AlarmRuleSummary): void {
+    if (isPending) {
+      return;
+    }
+    setRuleToDelete(rule);
+  }
+
+  function handleCancelDelete(): void {
+    if (isPending) {
+      return;
+    }
+    setRuleToDelete(null);
+  }
+
+  function handleConfirmDelete(): void {
+    if (!ruleToDelete) {
       return;
     }
 
-    setFeedback(null);
+    clearFeedback();
     startTransition(async () => {
-      const result = await deleteAlarmRuleAction({ ruleId });
+      const result = await deleteAlarmRuleAction({ ruleId: ruleToDelete.id });
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer l'alarme." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer l'alarme." });
         return;
       }
 
-      if (editingRuleId === ruleId) {
+      if (editingRuleId === ruleToDelete.id) {
         resetDraft();
       }
-      setFeedback({ tone: "success", message: "Alarme supprimee." });
+      showFeedback({ tone: "success", message: "Alarme supprimee." });
+      setRuleToDelete(null);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-4">
-      <Card className="border-brand-200 bg-brand-50">
+      <Card surface="child">
         <CardHeader>
           <CardTitle>Vue rapide alarmes - {childName}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-3">
-          <p className="rounded-xl bg-white px-3 py-2 text-sm text-ink-muted">
-            Alarmes actives: <span className="font-semibold text-ink-strong">{activeRulesCount}</span>
+          <p className="rounded-radius-button bg-bg-surface-hover/70 px-3 py-2 text-sm text-text-secondary">
+            Alarmes actives: <span className="font-semibold text-text-primary">{activeRulesCount}</span>
           </p>
-          <p className="rounded-xl bg-white px-3 py-2 text-sm text-ink-muted">
-            Total regles: <span className="font-semibold text-ink-strong">{rules.length}</span>
+          <p className="rounded-radius-button bg-bg-surface-hover/70 px-3 py-2 text-sm text-text-secondary">
+            Total regles: <span className="font-semibold text-text-primary">{rules.length}</span>
           </p>
-          <p className="rounded-xl bg-white px-3 py-2 text-sm text-ink-muted">
-            A acquitter: <span className="font-semibold text-ink-strong">{triggeredEventsCount}</span>
+          <p className="rounded-radius-button bg-bg-surface-hover/70 px-3 py-2 text-sm text-text-secondary">
+            A acquitter: <span className="font-semibold text-text-primary">{triggeredEventsCount}</span>
           </p>
         </CardContent>
       </Card>
 
       {feedback ? <ParentFeedbackBanner message={feedback.message} tone={feedback.tone} /> : null}
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>
             {editingRuleId ? "Modifier une alarme" : "Nouvelle alarme"} pour {childName}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 rounded-xl bg-surface-elevated px-3 py-2 text-sm text-ink-muted">
+          <p className="mb-3 rounded-radius-button bg-bg-surface-hover/60 px-3 py-2 text-sm text-text-secondary">
             Pattern parent: regler la recurrence, le son et le message, puis sauvegarder.
           </p>
           <form className="space-y-3" onSubmit={handleSubmit}>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label htmlFor="alarm-label" className="text-sm font-semibold text-ink-muted">
+                <label htmlFor="alarm-label" className="text-sm font-semibold text-text-secondary">
                   Nom
                 </label>
                 <Input
@@ -301,26 +326,25 @@ export function ParentAlarmsManager({
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="alarm-mode" className="text-sm font-semibold text-ink-muted">
+                <label htmlFor="alarm-mode" className="text-sm font-semibold text-text-secondary">
                   Recurrence
                 </label>
-                <select
+                <Select
                   id="alarm-mode"
                   value={draft.mode}
                   onChange={(event) => handleModeChange(event.target.value as AlarmMode)}
-                  className="h-11 w-full rounded-xl border border-accent-200 bg-white px-3 text-sm text-ink-strong"
                 >
                   <option value="ponctuelle">Ponctuelle</option>
                   <option value="semaine_travail">Semaine de travail (sans week-end)</option>
                   <option value="semaine_complete">Semaine complete (avec week-end)</option>
                   <option value="personnalise">Personnalise</option>
-                </select>
+                </Select>
               </div>
             </div>
 
             {draft.mode === "ponctuelle" ? (
               <div className="space-y-1">
-                <label htmlFor="alarm-one-shot" className="text-sm font-semibold text-ink-muted">
+                <label htmlFor="alarm-one-shot" className="text-sm font-semibold text-text-secondary">
                   Date et heure
                 </label>
                 <Input
@@ -336,7 +360,7 @@ export function ParentAlarmsManager({
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label htmlFor="alarm-time" className="text-sm font-semibold text-ink-muted">
+                  <label htmlFor="alarm-time" className="text-sm font-semibold text-text-secondary">
                     Heure
                   </label>
                   <Input
@@ -352,7 +376,7 @@ export function ParentAlarmsManager({
 
                 {draft.mode === "personnalise" ? (
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-ink-muted">Jours actifs</p>
+                    <p className="text-sm font-semibold text-text-secondary">Jours actifs</p>
                     <div className="flex flex-wrap gap-2">
                       {ALARM_DAY_OPTIONS.map((day) => {
                         const isActive = (draft.daysMask & day.bit) !== 0;
@@ -363,7 +387,7 @@ export function ParentAlarmsManager({
                             onClick={() => handleDayToggle(day.bit)}
                             className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                               isActive
-                                ? "bg-brand-600 text-ink-inverse"
+                                ? "bg-brand-600 text-text-inverse"
                                 : "bg-accent-100 text-accent-900 hover:bg-accent-200"
                             }`}
                           >
@@ -379,25 +403,24 @@ export function ParentAlarmsManager({
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label htmlFor="alarm-sound" className="text-sm font-semibold text-ink-muted">
+                <label htmlFor="alarm-sound" className="text-sm font-semibold text-text-secondary">
                   Son
                 </label>
-                <select
+                <Select
                   id="alarm-sound"
                   value={draft.soundKey}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, soundKey: event.target.value }))
                   }
-                  className="h-11 w-full rounded-xl border border-accent-200 bg-white px-3 text-sm text-ink-strong"
                 >
                   {ALARM_SOUND_OPTIONS.map((sound) => (
                     <option key={sound.key} value={sound.key}>
                       {sound.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
-              <label className="flex items-center gap-2 text-sm text-ink-muted md:pt-8">
+              <label className="flex items-center gap-2 text-sm text-text-secondary md:pt-8">
                 <input
                   type="checkbox"
                   checked={draft.enabled}
@@ -411,29 +434,29 @@ export function ParentAlarmsManager({
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="alarm-message" className="text-sm font-semibold text-ink-muted">
+              <label htmlFor="alarm-message" className="text-sm font-semibold text-text-secondary">
                 Message affiche en grand
               </label>
-              <textarea
+              <TextArea
                 id="alarm-message"
                 value={draft.message}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, message: event.target.value }))
                 }
                 placeholder="C'est l'heure de te preparer."
-                className="min-h-24 w-full rounded-xl border border-accent-200 bg-white px-3 py-2 text-sm text-ink-strong shadow-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-200"
+                rows={4}
                 required
               />
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" loading={isPending}>
+              <Button type="submit" variant="premium" loading={isPending}>
                 {editingRuleId ? "Enregistrer les modifications" : "Creer l'alarme"}
               </Button>
               {editingRuleId ? (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="glass"
                   onClick={resetDraft}
                   disabled={isPending}
                 >
@@ -445,22 +468,22 @@ export function ParentAlarmsManager({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>Alarmes configurees</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {sortedRules.length === 0 ? (
-            <p className="text-sm text-ink-muted">Aucune alarme configuree pour le moment.</p>
+            <p className="text-sm text-text-secondary">Aucune alarme configuree pour le moment.</p>
           ) : (
             sortedRules.map((rule) => (
-              <div key={rule.id} className="rounded-xl border border-accent-100 bg-white p-3">
+              <div key={rule.id} className="rounded-radius-button border border-border-subtle bg-bg-surface-hover/60 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <p className="font-semibold text-ink-strong">{rule.label}</p>
-                    <p className="text-xs text-ink-muted">{formatRuleSchedule(rule)}</p>
-                    <p className="text-xs text-ink-muted">Son : {getSoundLabel(rule.soundKey)}</p>
-                    <p className="text-sm text-ink-muted">{rule.message}</p>
+                    <p className="font-semibold text-text-primary">{rule.label}</p>
+                    <p className="text-xs text-text-secondary">{formatRuleSchedule(rule)}</p>
+                    <p className="text-xs text-text-secondary">Son : {getSoundLabel(rule.soundKey)}</p>
+                    <p className="text-sm text-text-secondary">{rule.message}</p>
                   </div>
                   <Badge variant={rule.enabled ? "success" : "neutral"}>
                     {rule.enabled ? "Active" : "Inactive"}
@@ -469,7 +492,7 @@ export function ParentAlarmsManager({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="glass"
                     onClick={() => handleEdit(rule)}
                     disabled={isPending}
                   >
@@ -477,7 +500,7 @@ export function ParentAlarmsManager({
                   </Button>
                   <Button
                     size="sm"
-                    variant={rule.enabled ? "ghost" : "primary"}
+                    variant={rule.enabled ? "glass" : "premium"}
                     onClick={() => handleToggle(rule.id, !rule.enabled)}
                     disabled={isPending}
                   >
@@ -485,8 +508,8 @@ export function ParentAlarmsManager({
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(rule.id)}
+                    variant="danger"
+                    onClick={() => handleRequestDelete(rule)}
                     disabled={isPending}
                   >
                     Supprimer
@@ -498,35 +521,51 @@ export function ParentAlarmsManager({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>Historique recent</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {events.length === 0 ? (
-            <p className="text-sm text-ink-muted">Aucun declenchement enregistre.</p>
+            <p className="text-sm text-text-secondary">Aucun declenchement enregistre.</p>
           ) : (
             events.map((eventItem) => (
-              <div key={eventItem.id} className="rounded-xl border border-accent-100 bg-white p-3">
+              <div key={eventItem.id} className="rounded-radius-button border border-border-subtle bg-bg-surface-hover/60 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink-strong">{eventItem.ruleLabel}</p>
+                  <p className="text-sm font-semibold text-text-primary">{eventItem.ruleLabel}</p>
                   <Badge variant={eventItem.status === "acknowledged" ? "success" : "warning"}>
                     {eventItem.status === "acknowledged" ? "Acquittee" : "Declenchee"}
                   </Badge>
                 </div>
-                <p className="text-xs text-ink-muted">
+                <p className="text-xs text-text-secondary">
                   Prevue:{" "}
                   {new Intl.DateTimeFormat("fr-FR", {
                     dateStyle: "short",
                     timeStyle: "short",
                   }).format(new Date(eventItem.dueAt))}
                 </p>
-                <p className="text-sm text-ink-muted">{eventItem.ruleMessage}</p>
+                <p className="text-sm text-text-secondary">{eventItem.ruleMessage}</p>
               </div>
             ))
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={ruleToDelete !== null}
+        title="Supprimer cette alarme ?"
+        {...(ruleToDelete
+          ? {
+              description: `L'alarme "${ruleToDelete.label}" sera supprimee.`,
+            }
+          : {})}
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        confirmVariant="danger"
+        loading={isPending}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

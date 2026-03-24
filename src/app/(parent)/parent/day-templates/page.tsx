@@ -71,6 +71,9 @@ export default async function ParentDayTemplatesPage(): Promise<React.JSX.Elemen
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/parent/weekly-tasks" className={linkButtonClass}>
+              Programmer les taches
+            </Link>
             <Link href="/parent/categories" className={linkButtonClass}>
               Gerer les categories
             </Link>

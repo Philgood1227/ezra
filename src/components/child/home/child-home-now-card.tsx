@@ -7,11 +7,11 @@ import {
   ArrowRightIcon,
   ClockIcon,
   SparkIcon,
-  getActivityIconByColorKey,
   getActivityVisual,
 } from "@/components/child/icons/child-premium-icons";
-import { Button, Card, CardContent, Skeleton } from "@/components/ds";
+import { Button, Card, CardContent, Skeleton, resolveCategoryIcon } from "@/components/ds";
 import type { ChildHomeNowState, ChildHomeTaskSummary } from "@/lib/api/child-home";
+import type { CategoryColorKey, CategoryIconKey } from "@/lib/day-templates/types";
 import { cn } from "@/lib/utils";
 
 interface ChildHomeNowCardProps {
@@ -27,7 +27,8 @@ interface FocusContent {
   key: string;
   title: string;
   timeLabel: string;
-  colorKey: string | null;
+  colorKey: CategoryColorKey;
+  iconKey: CategoryIconKey;
 }
 
 function getCurrentFocusContent(input: {
@@ -42,6 +43,7 @@ function getCurrentFocusContent(input: {
       title: input.currentTask.title,
       timeLabel: `Jusqu'a ${input.currentTask.endTime}`,
       colorKey: input.currentTask.colorKey,
+      iconKey: input.currentTask.iconKey,
     };
   }
 
@@ -51,6 +53,7 @@ function getCurrentFocusContent(input: {
       title: "Ecole",
       timeLabel: input.activeSchoolBlockEndTime ? `Jusqu'a ${input.activeSchoolBlockEndTime}` : "Maintenant",
       colorKey: "category-ecole",
+      iconKey: "school",
     };
   }
 
@@ -60,6 +63,7 @@ function getCurrentFocusContent(input: {
       title: "Pause",
       timeLabel: input.nextTask?.startTime ? `Debut ${input.nextTask.startTime}` : "Bientot",
       colorKey: input.nextTask?.colorKey ?? "category-calme",
+      iconKey: input.nextTask?.iconKey ?? "calm",
     };
   }
 
@@ -69,6 +73,7 @@ function getCurrentFocusContent(input: {
       title: "Pause",
       timeLabel: input.nextTask?.startTime ? `Debut ${input.nextTask.startTime}` : "Ensuite",
       colorKey: input.nextTask?.colorKey ?? "category-calme",
+      iconKey: input.nextTask?.iconKey ?? "calm",
     };
   }
 
@@ -78,6 +83,7 @@ function getCurrentFocusContent(input: {
       title: "Journee finie",
       timeLabel: "Bravo",
       colorKey: "category-loisir",
+      iconKey: "leisure",
     };
   }
 
@@ -86,6 +92,7 @@ function getCurrentFocusContent(input: {
     title: "Pas de tache",
     timeLabel: "A preparer",
     colorKey: "category-routine",
+    iconKey: "routine",
   };
 }
 
@@ -96,6 +103,7 @@ function getNextContent(nextTask: ChildHomeTaskSummary | null): FocusContent {
       title: "Rien apres",
       timeLabel: "Pour aujourd'hui",
       colorKey: "category-calme",
+      iconKey: "calm",
     };
   }
 
@@ -104,6 +112,7 @@ function getNextContent(nextTask: ChildHomeTaskSummary | null): FocusContent {
     title: nextTask.title,
     timeLabel: `${nextTask.startTime} - ${nextTask.endTime}`,
     colorKey: nextTask.colorKey,
+    iconKey: nextTask.iconKey,
   };
 }
 
@@ -132,8 +141,8 @@ export function ChildHomeNowCard({
 
   const currentVisual = getActivityVisual(currentContent.colorKey);
   const nextVisual = getActivityVisual(nextContent.colorKey);
-  const CurrentIcon = getActivityIconByColorKey(currentContent.colorKey);
-  const NextIcon = getActivityIconByColorKey(nextContent.colorKey);
+  const CurrentIcon = resolveCategoryIcon(currentContent.iconKey);
+  const NextIcon = resolveCategoryIcon(nextContent.iconKey);
   const currentTaskTypeIconTestId = `now-task-category-icon-${currentContent.colorKey ?? "default"}`;
 
   if (isLoading) {

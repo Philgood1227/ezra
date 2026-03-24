@@ -18,7 +18,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   if (!isSupabaseEnabled()) {
-    const response = NextResponse.json({ redirectTo: "/parent/dashboard" });
+    const response = NextResponse.json({ redirectTo: "/parent-v2/dashboard" });
     const devCookie = getDevParentSessionCookie();
     response.cookies.set(devCookie.name, devCookie.value, devCookie.options);
     return response;
@@ -49,5 +49,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return jsonWithCookies(response, { redirectTo: "/child" });
   }
 
-  return jsonWithCookies(response, { redirectTo: "/parent/dashboard" });
+  return jsonWithCookies(response, { redirectTo: "/parent-v2/dashboard" });
 }

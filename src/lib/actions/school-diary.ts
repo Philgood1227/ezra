@@ -191,6 +191,10 @@ function mapChecklistTemplateRows(
     label: template.label,
     description: template.description,
     isDefault: template.is_default,
+    recurrenceRule: template.recurrence_rule ?? "none",
+    recurrenceDays: template.recurrence_days ?? [],
+    recurrenceStartDate: template.recurrence_start_date ?? null,
+    recurrenceEndDate: template.recurrence_end_date ?? null,
     items: (itemsByTemplateId.get(template.id) ?? [])
       .map((item) => ({
         id: item.id,

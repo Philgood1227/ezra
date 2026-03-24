@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
   Input,
   Select,
   TextArea,
@@ -21,6 +22,7 @@ import {
   updateSchoolDiaryEntryAction,
 } from "@/lib/actions/school-diary";
 import { useFormField } from "@/lib/hooks/useFormField";
+import { useParentFeedback } from "@/lib/hooks/useParentFeedback";
 import type {
   SchoolDiaryEntryInput,
   SchoolDiaryEntrySummary,
@@ -94,10 +96,11 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
   const router = useRouter();
   const formRef = useRef<HTMLDivElement | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const { feedback, showFeedback, clearFeedback } = useParentFeedback();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"future" | "past" | "all">("future");
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<SchoolDiaryEntrySummary | null>(null);
   const [draft, setDraft] = useState<SchoolDiaryEntryInput>(EMPTY_DRAFT);
 
   const dateField = useFormField({
@@ -155,19 +158,19 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
     });
     dateField.reset(entry.date);
     titleField.reset(entry.title);
-    setFeedback(null);
+    clearFeedback();
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function submitEntry(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    setFeedback(null);
+    clearFeedback();
     dateField.markTouched();
     titleField.markTouched();
     const dateError = dateField.validateNow();
     const titleError = titleField.validateNow();
     if (dateError || titleError) {
-      setFeedback({ tone: "error", message: "Veuillez corriger les champs requis." });
+      showFeedback({ tone: "error", message: "Veuillez corriger les champs requis." });
       return;
     }
 
@@ -189,11 +192,11 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
         ? await updateSchoolDiaryEntryAction(editingId, payload)
         : await createSchoolDiaryEntryAction(payload);
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer l'entree." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer l'entree." });
         return;
       }
 
-      setFeedback({
+      showFeedback({
         tone: "success",
         message: editingId ? "Entree mise a jour." : "Entree ajoutee et checklist generee.",
       });
@@ -202,31 +205,45 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
     });
   }
 
-  function removeEntry(entry: SchoolDiaryEntrySummary): void {
-    const confirmed = window.confirm(`Supprimer "${entry.title}" ?`);
-    if (!confirmed) {
+  function requestDeleteEntry(entry: SchoolDiaryEntrySummary): void {
+    if (isPending) {
+      return;
+    }
+    setEntryToDelete(entry);
+  }
+
+  function cancelDeleteEntry(): void {
+    if (isPending) {
+      return;
+    }
+    setEntryToDelete(null);
+  }
+
+  function confirmDeleteEntry(): void {
+    if (!entryToDelete) {
       return;
     }
 
-    setFeedback(null);
+    clearFeedback();
     startTransition(async () => {
-      const result = await deleteSchoolDiaryEntryAction(entry.id);
+      const result = await deleteSchoolDiaryEntryAction(entryToDelete.id);
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer l'entree." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer l'entree." });
         return;
       }
 
-      if (editingId === entry.id) {
+      if (editingId === entryToDelete.id) {
         resetForm();
       }
-      setFeedback({ tone: "success", message: "Entree supprimee." });
+      showFeedback({ tone: "success", message: "Entree supprimee." });
+      setEntryToDelete(null);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-4">
-      <Card className="bg-bg-surface/85">
+      <Card surface="child">
         <CardHeader>
           <CardTitle>Carnet de {childName}</CardTitle>
           <CardDescription>Vue rapide des elements a venir et historiques.</CardDescription>
@@ -248,7 +265,7 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
       </Card>
 
       <div ref={formRef}>
-        <Card>
+        <Card surface="glass">
           <CardHeader>
             <CardTitle>{editingId ? "Modifier une entree" : "Ajouter une entree"}</CardTitle>
             <CardDescription>Formulaire parent en une colonne, avec validations inline.</CardDescription>
@@ -378,11 +395,11 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" loading={isPending}>
+                <Button type="submit" variant="premium" loading={isPending}>
                   {editingId ? "Enregistrer" : "Ajouter"}
                 </Button>
                 {editingId ? (
-                  <Button type="button" variant="ghost" onClick={resetForm}>
+                  <Button type="button" variant="glass" onClick={resetForm}>
                     Annuler
                   </Button>
                 ) : null}
@@ -394,17 +411,17 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
 
       {feedback ? <ParentFeedbackBanner tone={feedback.tone} message={feedback.message} /> : null}
 
-      <Card>
+      <Card surface="glass">
         <CardHeader className="space-y-3">
           <CardTitle>Entrees du carnet</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={filter === "future" ? "primary" : "secondary"} onClick={() => setFilter("future")}>
+            <Button size="sm" variant={filter === "future" ? "premium" : "glass"} onClick={() => setFilter("future")}>
               A venir
             </Button>
-            <Button size="sm" variant={filter === "past" ? "primary" : "secondary"} onClick={() => setFilter("past")}>
+            <Button size="sm" variant={filter === "past" ? "premium" : "glass"} onClick={() => setFilter("past")}>
               Passe
             </Button>
-            <Button size="sm" variant={filter === "all" ? "primary" : "secondary"} onClick={() => setFilter("all")}>
+            <Button size="sm" variant={filter === "all" ? "premium" : "glass"} onClick={() => setFilter("all")}>
               Tout
             </Button>
           </div>
@@ -437,16 +454,16 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
                       {entry.description ? (
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="glass"
                           onClick={() => setExpandedEntryId(expanded ? null : entry.id)}
                         >
                           {expanded ? "Replier" : "Details"}
                         </Button>
                       ) : null}
-                      <Button size="sm" variant="secondary" onClick={() => startEdit(entry)}>
+                      <Button size="sm" variant="glass" onClick={() => startEdit(entry)}>
                         Modifier
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={isPending} onClick={() => removeEntry(entry)}>
+                      <Button size="sm" variant="danger" disabled={isPending} onClick={() => requestDeleteEntry(entry)}>
                         Supprimer
                       </Button>
                     </div>
@@ -457,7 +474,22 @@ export function SchoolDiaryManager({ childName, entries }: SchoolDiaryManagerPro
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={entryToDelete !== null}
+        title="Supprimer cette entree ?"
+        {...(entryToDelete
+          ? {
+              description: `L'entree "${entryToDelete.title}" sera supprimee.`,
+            }
+          : {})}
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        confirmVariant="danger"
+        loading={isPending}
+        onCancel={cancelDeleteEntry}
+        onConfirm={confirmDeleteEntry}
+      />
     </div>
   );
 }
-

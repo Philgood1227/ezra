@@ -1,5 +1,6 @@
 import { minutesToTimeLabel } from "@/lib/day-templates/time";
 import type { FamilyLocation } from "@/lib/time/family-location";
+import { getDateKeyInTimeZone as getWeatherDateKeyInTimeZone } from "@/lib/weather/date";
 
 export type DaylightSource = "api" | "fallback";
 export type DaytimeSegmentId = "nuit" | "matin" | "midi" | "apres-midi" | "soir";
@@ -201,19 +202,7 @@ function toTitleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export function getDateKeyInTimeZone(date: Date, timezone: string): string {
-  const formatter = getDateFormatter(timezone);
-  const parts = formatter.formatToParts(date);
-  const year = getPart(parts, "year");
-  const month = getPart(parts, "month");
-  const day = getPart(parts, "day");
-
-  if (!year || !month || !day) {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  }
-
-  return `${year}-${month}-${day}`;
-}
+export const getDateKeyInTimeZone = getWeatherDateKeyInTimeZone;
 
 export function formatFrenchDateInTimeZone(date: Date, timezone: string): string {
   const formatter = getLongDateFormatter(timezone);

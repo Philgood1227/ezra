@@ -1,1010 +1,1198 @@
-﻿# Project Snapshot
+﻿# Project Snapshot - Ezra
 
-Snapshot date: 2026-02-20  
-Repository root: `c:\Users\la\ezra`  
-Inspection mode: read-only (no dependency install, no test run, no config change)
+Generated: 2026-03-01 (local workspace snapshot)
+Scope: read-only repository inspection + this report file creation.
 
-## 0) Method and evidence policy
-- All findings below are derived from direct file reads and read-only shell commands.
-- If something is not present in the repository, it is explicitly marked as `not found`.
-- Secrets from `.env.local` are intentionally redacted; only variable names are reported.
+## 1) Stack and Tooling (evidence-based)
 
-## 1) Stack and tooling (evidence-based)
+### 1.1 Config and project files discovered
 
-### 1.1 Core stack
-| Area | Finding | Evidence |
+| File | Status | Evidence |
 |---|---|---|
-| Framework | Next.js App Router | `src/app` exists with route groups and `page.tsx` files; `src/pages` and `pages` are `not found`; `next` dep in `package.json:27` |
-| Rendering model | Mixed server + client components | Server route files in `src/app/(child)/child/page.tsx`; client files with `"use client"` in `src/components/child/child-home-live.tsx:1`, `src/components/child/my-day/child-day-view-live.tsx:1`, `src/components/timeline/day-timeline.tsx:1` |
-| Language | TypeScript strict mode | `tsconfig.json:9-24` (`strict`, `noImplicitAny`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`) |
-| Package manager | npm | `package-lock.json` present; `pnpm-lock.yaml` and `yarn.lock` not found |
-| Styling | Tailwind CSS + CSS variable tokens | `tailwind.config.ts:3-13`, token bindings in `tailwind.config.ts:15-80`, token definitions in `src/app/globals.css:20-100` |
-| Motion | Framer Motion | dep in `package.json:26`; used in child/timeline components |
-| Data backend | Supabase + local demo fallback | deps in `package.json:22-23`; gating in `src/lib/supabase/env.ts:13-19`; fallback branch in `src/lib/api/day-view.ts:286-352` |
-| PWA | `@ducanh2912/next-pwa` + offline route | `next.config.ts:2,7-18`; `src/app/~offline/page.tsx` |
-| Validation | Zod | dep in `package.json:31`; used in server actions e.g. `src/lib/actions/tasks.ts`, `src/lib/actions/rewards.ts` |
+| `package.json` | found | scripts/deps/devDeps at `package.json:5-65` |
+| `package-lock.json` | found | lockfile present (`package-lock.json` exists) |
+| `pnpm-lock.yaml` | not found | existence check returned false |
+| `yarn.lock` | not found | existence check returned false |
+| `tsconfig.json` | found | strict TS keys at `tsconfig.json:11-31` |
+| `next.config.ts` | found | PWA + headers + strict mode at `next.config.ts:2-101` |
+| `tailwind.config.ts` | found | content scan + theme extensions at `tailwind.config.ts:15-138` |
+| `postcss.config.mjs` | found | Tailwind + Autoprefixer at `postcss.config.mjs:3-4` |
+| `eslint.config.mjs` | found | Next + TS + Prettier extends at `eslint.config.mjs:11-21` |
+| `.prettierrc.json` | found | prettier options + tailwind plugin at `.prettierrc.json:2-6` |
+| `vitest.config.ts` | found | jsdom, includes, coverage at `vitest.config.ts:4-25` |
+| `playwright.config.ts` | found | testDir `./e2e`, webServer, mock auth env at `playwright.config.ts:6-30` |
+| `.storybook/main.ts`, `.storybook/preview.tsx` | found | Storybook 8 + Vite config and decorators |
+| `supabase/config.toml`, `supabase/migrations/*` | found | project id and DB version at `supabase/config.toml:1-4` |
+| `.env.local` | found | keys present (see env key list below) |
+| `.env.example` | not found | file discovery returned none |
+| `.github/workflows` | not found | explicit path check returned `not found` |
+| `jest.config.*` | not found | file discovery returned none |
+| `cypress.config.*` | not found | file discovery returned none |
 
-### 1.2 Scripts and commands (from `package.json`)
-Defined in `package.json:5-18`:
+### 1.2 Framework, runtime, language, and build model
 
-- `npm run dev` -> `next dev`
-- `npm run build` -> `next build`
-- `npm run start` -> `next start`
-- `npm run lint` -> `eslint . --max-warnings=0`
-- `npm run typecheck` -> `tsc --noEmit`
-- `npm run format` -> `prettier --write .`
-- `npm run format:check` -> `prettier --check .`
-- `npm run test` -> `vitest run`
-- `npm run test:watch` -> `vitest`
-- `npm run test:e2e` -> `playwright test`
-- `npm run storybook` -> Storybook dev
-- `npm run storybook:build` -> Storybook build
-- `npm run db:types` -> Supabase type generation to `src/types/database.ts`
-
-### 1.3 Config inventory
-| File | Status | Key evidence |
+| Area | Finding | Proof |
 |---|---|---|
-| `package.json` | found | scripts + deps (`package.json:5-61`) |
-| `package-lock.json` | found | npm lockfile |
-| `tsconfig.json` | found | strict TS + alias `@/*` (`tsconfig.json:30-33`) |
-| `next.config.ts` | found | PWA config + optional `distDir` via `NEXT_DIST_DIR` |
-| `tailwind.config.ts` | found | DS token integration and extensions |
-| `postcss.config.mjs` | found | Tailwind + Autoprefixer |
-| `eslint.config.mjs` | found | Next core-web-vitals + TS + Prettier |
-| `.prettierrc.json` | found | Prettier + `prettier-plugin-tailwindcss` |
-| `vitest.config.ts` | found | jsdom + setup + include pattern |
-| `vitest.setup.ts` | found | Testing Library jest-dom setup |
-| `playwright.config.ts` | found | E2E config and webServer |
-| `jest.config.*` | not found | not found |
-| `cypress.config.*` | not found | not found |
-| `.github/workflows` | not found | CI workflows not found |
-| `.env.example` | not found | not found |
-| `supabase/config.toml` | found | local Supabase project config |
+| Framework | Next.js 15 | `package.json:31` (`"next": "^15.5.12"`) |
+| Router model | App Router (not Pages Router) | routes under `src/app/**`; `src/pages` not found |
+| React | React 19 | `package.json:32-33` |
+| Language | TypeScript strict mode | `tsconfig.json:11-14` (`strict`, `noImplicitAny`, etc.) |
+| Path alias | `@/* -> ./src/*` | `tsconfig.json:30-32` |
+| Linting | ESLint 9 + `next/core-web-vitals` + TS | `eslint.config.mjs:11` |
+| Formatting | Prettier + `prettier-plugin-tailwindcss` | `.prettierrc.json:2-6` |
+| CSS pipeline | Tailwind CSS + PostCSS + Autoprefixer | `tailwind.config.ts`, `postcss.config.mjs:3-4` |
+| PWA | `@ducanh2912/next-pwa` with offline fallback | `next.config.ts:2`, `:38-45` |
+| Storybook | Storybook 8 with `@storybook/react-vite` | `.storybook/main.ts:2-8` |
+| Unit test | Vitest + jsdom + Testing Library | `vitest.config.ts:4-25`, deps in `package.json:44-46,65` |
+| E2E test | Playwright | `package.json:38`, `playwright.config.ts:1-7` |
+| Data backend | Supabase client/server/admin + SQL migrations | `src/lib/supabase/*`, `supabase/migrations/*` |
 
-### 1.4 Environment assumptions
-- README env doc exists (`README.md:28-39`).
-- `.env.local` keys detected (values redacted):
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `CHILD_SESSION_SECRET`
-  - `EZRA_DEV_AUTH_BYPASS`
-  - `DAY_PLAN_V2`
-  - `NEXT_PUBLIC_DAY_PLAN_V2`
-- Supabase enable/bypass logic: `src/lib/supabase/env.ts:9-19`.
-- Day-plan v2 flag logic: `src/config/feature-flags.ts:10-11`.
+### 1.3 Scripts and local commands (source of truth: `package.json`)
 
-## 2) Repository structure map (depth <= 4)
+| Purpose | Command | Location |
+|---|---|---|
+| dev server | `npm run dev` -> `next dev` | `package.json:6` |
+| production build | `npm run build` -> `next build` | `package.json:7` |
+| start built app | `npm run start` -> `next start` | `package.json:8` |
+| lint | `npm run lint` -> `eslint . --max-warnings=0` | `package.json:9` |
+| typecheck | `npm run typecheck` -> `tsc --noEmit` | `package.json:10` |
+| unit tests | `npm run test` -> `vitest run` | `package.json:13` |
+| unit tests watch | `npm run test:watch` -> `vitest` | `package.json:14` |
+| e2e tests | `npm run test:e2e` -> `playwright test` | `package.json:15` |
+| storybook dev | `npm run storybook` | `package.json:16` |
+| storybook build | `npm run storybook:build` | `package.json:17` |
+| generated DB types | `npm run db:types` | `package.json:18` |
 
-### 2.1 Directory tree output
+### 1.4 Environment/runtime assumptions found
+
+Environment key names found in `.env.local` (values not copied):
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CHILD_SESSION_SECRET`
+- `EZRA_DEV_AUTH_BYPASS`
+- `DAY_PLAN_V2`
+- `NEXT_PUBLIC_DAY_PLAN_V2`
+- `OPENWEATHERMAP_API_KEY`
+- `OPENAI_API_KEY`
+
+Docs/runtime evidence:
+- README base env template (Supabase + auth): `README.md:31-35`
+- Supabase env checks: `src/lib/supabase/env.ts:1-38`
+- V2 feature flag resolver: `src/config/feature-flags.ts:10-11`
+
+## 2) Repository Structure Map (depth <= 4)
+
+### 2.1 Top-level route/component/lib/test/docs roots requested
+
+Root-level folders requested by brief:
+- `app/` not found
+- `pages/` not found
+- `components/` not found
+- `lib/` not found
+- `styles/` not found
+- `tests/` not found
+- `__tests__/` not found
+
+`src/`-based equivalents:
+- `src/app` found
+- `src/pages` not found
+- `src/components` found
+- `src/lib` found
+- `src/styles` not found
+- `src/__tests__` found
+- `docs` found
+
+### 2.2 Trees (captured by read-only PowerShell recursion)
+
+#### `src/app`
+
 ```text
-=== app ===
-not found
-=== src/app ===
 src/app
-├── (auth)
-│   ├── auth
-│   │   ├── login
-│   │   │   └── page.tsx
-│   │   ├── pin
-│   │   │   └── page.tsx
-│   │   ├── register
-│   │   │   └── page.tsx
-│   │   └── page.tsx
-│   ├── layout.tsx
-│   └── template.tsx
-├── (child)
-│   ├── child
-│   │   ├── achievements
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── checklists
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── cinema
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── emotions
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── focus
-│   │   │   └── [instanceId]
-│   │   ├── knowledge
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── meals
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── my-day
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── loading.tsx
-│   │   └── page.tsx
-│   ├── layout.tsx
-│   └── template.tsx
-├── (parent)
-│   ├── parent
-│   │   ├── achievements
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── alarms
-│   │   │   └── page.tsx
-│   │   ├── categories
-│   │   │   └── page.tsx
-│   │   ├── checklists
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── cinema
-│   │   │   └── page.tsx
-│   │   ├── dashboard
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── day-templates
-│   │   │   ├── [id]
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── gamification
-│   │   │   └── page.tsx
-│   │   ├── knowledge
-│   │   │   ├── [subjectId]
-│   │   │   └── page.tsx
-│   │   ├── meals
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── notifications
-│   │   │   └── page.tsx
-│   │   ├── rewards
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── school-diary
-│   │   │   ├── loading.tsx
-│   │   │   └── page.tsx
-│   │   ├── settings
-│   │   │   └── page.tsx
-│   │   └── page.tsx
-│   └── layout.tsx
-├── ~offline
-│   └── page.tsx
-├── api
-│   ├── auth
-│   │   ├── child
-│   │   │   ├── pin
-│   │   │   └── pin-config
-│   │   ├── parent
-│   │   │   ├── login
-│   │   │   ├── logout
-│   │   │   └── register
-│   │   └── _utils.ts
-│   └── parent
-│       └── nav-badges
-│           └── route.ts
-├── error.tsx
-├── favicon.ico
-├── globals.css
-├── layout.tsx
-├── loading.tsx
-├── manifest.ts
-├── not-found.tsx
-└── page.tsx
-=== pages ===
-not found
-=== src/pages ===
-not found
-=== components ===
-not found
-=== src/components ===
+  (auth)/
+    auth/
+      login/
+        page.tsx
+      page.tsx
+      pin/
+        page.tsx
+      register/
+        page.tsx
+    layout.tsx
+    template.tsx
+  (child)/
+    child/
+      achievements/
+        loading.tsx
+        page.tsx
+      checklists/
+        loading.tsx
+        page.tsx
+      cinema/
+        loading.tsx
+        page.tsx
+      emotions/
+        loading.tsx
+        page.tsx
+      focus/
+        [instanceId]/
+      knowledge/
+        loading.tsx
+        page.tsx
+      loading.tsx
+      meals/
+        loading.tsx
+        page.tsx
+      my-day/
+        loading.tsx
+        page.tsx
+        timeline/
+      page.tsx
+      revisions/
+        [cardId]/
+      tools/
+        page.tsx
+    layout.tsx
+    template.tsx
+  (parent)/
+    layout.tsx
+    parent/
+      achievements/
+        loading.tsx
+        page.tsx
+      alarms/
+        page.tsx
+      categories/
+        page.tsx
+      checklists/
+        loading.tsx
+        page.tsx
+      cinema/
+        page.tsx
+      dashboard/
+        loading.tsx
+        page.tsx
+      day-templates/
+        [id]/
+        loading.tsx
+        page.tsx
+      gamification/
+        page.tsx
+      knowledge/
+        [subjectId]/
+        page.tsx
+      meals/
+        loading.tsx
+        page.tsx
+      notifications/
+        page.tsx
+      page.tsx
+      rewards/
+        loading.tsx
+        page.tsx
+      school-diary/
+        loading.tsx
+        page.tsx
+      settings/
+        page.tsx
+  ~offline/
+    page.tsx
+  api/
+    auth/
+      _utils.ts
+      child/
+        pin/
+        pin-config/
+      parent/
+        login/
+        logout/
+        register/
+    csp-report/
+      route.ts
+    parent/
+      nav-badges/
+        route.ts
+  csp-test/
+    page.tsx
+  error.tsx
+  favicon.ico
+  globals.css
+  layout.tsx
+  loading.tsx
+  manifest.ts
+  not-found.tsx
+  page.tsx
+```
+#### `src/components`
+
+```text
 src/components
-├── calendar
-│   ├── CalendarPanel.stories.tsx
-│   ├── CalendarPanel.tsx
-│   ├── DateDisplay.tsx
-│   ├── MonthStrip.tsx
-│   └── SeasonBadge.tsx
-├── child
-│   ├── achievements
-│   │   ├── achievement-badge.stories.tsx
-│   │   ├── achievement-badge.tsx
-│   │   ├── achievement-unlock-celebration.stories.tsx
-│   │   ├── achievement-unlock-celebration.tsx
-│   │   ├── child-achievements-view.tsx
-│   │   └── index.ts
-│   ├── checklists
-│   │   ├── checklist-card.stories.tsx
-│   │   ├── checklist-card.tsx
-│   │   ├── checklist-item-row.stories.tsx
-│   │   ├── checklist-item-row.tsx
-│   │   ├── child-checklists-view.tsx
-│   │   └── index.ts
-│   ├── cinema
-│   │   ├── child-cinema-view.tsx
-│   │   ├── index.ts
-│   │   ├── movie-option-card.stories.tsx
-│   │   └── movie-option-card.tsx
-│   ├── emotions
-│   │   ├── child-emotions-view.tsx
-│   │   ├── emotion-check-in-card.tsx
-│   │   ├── emotion-picker.stories.tsx
-│   │   ├── emotion-picker.tsx
-│   │   ├── index.ts
-│   │   └── week-emotion-strip.tsx
-│   ├── focus
-│   │   └── focus-view.tsx
-│   ├── home
-│   │   ├── child-home-icons.tsx
-│   │   ├── child-home-now-card.tsx
-│   │   ├── index.ts
-│   │   ├── today-header.tsx
-│   │   └── tools-and-knowledge-card.tsx
-│   ├── icons
-│   │   └── child-premium-icons.tsx
-│   ├── knowledge
-│   │   ├── child-knowledge-view.tsx
-│   │   ├── index.ts
-│   │   ├── knowledge-card-detail.tsx
-│   │   ├── knowledge-card-tile.stories.tsx
-│   │   ├── knowledge-card-tile.tsx
-│   │   ├── subject-card.stories.tsx
-│   │   └── subject-card.tsx
-│   ├── meals
-│   │   ├── child-meals-view.tsx
-│   │   ├── favorite-meals-list.tsx
-│   │   ├── index.ts
-│   │   ├── meal-card.stories.tsx
-│   │   └── meal-card.tsx
-│   ├── my-day
-│   │   └── child-day-view-live.tsx
-│   └── child-home-live.tsx
-├── ds
-│   ├── avatar.stories.tsx
-│   ├── avatar.tsx
-│   ├── badge.stories.tsx
-│   ├── badge.tsx
-│   ├── button.stories.tsx
-│   ├── button.tsx
-│   ├── card.stories.tsx
-│   ├── card.tsx
-│   ├── empty-state.stories.tsx
-│   ├── empty-state.tsx
-│   ├── index.ts
-│   ├── input.stories.tsx
-│   ├── input.tsx
-│   ├── modal.stories.tsx
-│   ├── modal.tsx
-│   ├── page-layout.stories.tsx
-│   ├── page-layout.tsx
-│   ├── progress-bar.stories.tsx
-│   ├── progress-bar.tsx
-│   ├── select.stories.tsx
-│   ├── select.tsx
-│   ├── skeleton.stories.tsx
-│   ├── skeleton.tsx
-│   ├── tab-bar.stories.tsx
-│   ├── tab-bar.tsx
-│   ├── textarea.stories.tsx
-│   ├── textarea.tsx
-│   ├── theme-provider.tsx
-│   ├── theme-script.tsx
-│   ├── theme-toggle.stories.tsx
-│   ├── theme-toggle.tsx
-│   ├── toast.stories.tsx
-│   └── toast.tsx
-├── feedback
-│   ├── child-feedback-banner.tsx
-│   ├── network-status-banner.tsx
-│   └── parent-feedback-banner.tsx
-├── knowledge
-├── layout
-│   ├── auth-shell.tsx
-│   ├── child-shell.tsx
-│   ├── child-theme-lock.tsx
-│   ├── more-menu.tsx
-│   ├── parent-header.tsx
-│   ├── parent-shell.tsx
-│   ├── parent-sidebar.tsx
-│   └── placeholder-page.tsx
-├── motion
-│   ├── fade-in.tsx
-│   ├── index.ts
-│   ├── list-stagger.stories.tsx
-│   ├── list-stagger.tsx
-│   ├── page-transition.stories.tsx
-│   ├── page-transition.tsx
-│   └── scale-on-tap.tsx
-├── notifications
-│   ├── index.ts
-│   ├── NotificationBanner.tsx
-│   └── NotificationCenter.tsx
-├── onboarding
-│   ├── child-onboarding-overlay.tsx
-│   └── parent-onboarding-modal.tsx
-├── parent
-│   └── dashboard
-│       ├── dashboard-date.ts
-│       ├── emotions-widget.stories.tsx
-│       ├── emotions-widget.tsx
-│       ├── index.ts
-│       ├── kpi-card.stories.tsx
-│       ├── kpi-card.tsx
-│       ├── meals-widget.stories.tsx
-│       ├── meals-widget.tsx
-│       ├── parent-dashboard-skeleton.tsx
-│       ├── school-diary-widget.stories.tsx
-│       ├── school-diary-widget.tsx
-│       ├── today-load-widget.stories.tsx
-│       ├── today-load-widget.tsx
-│       ├── weekly-points-widget.stories.tsx
-│       ├── weekly-points-widget.tsx
-│       ├── weekly-tasks-widget.stories.tsx
-│       └── weekly-tasks-widget.tsx
-├── preferences
-│   └── feedback-preferences-card.tsx
-├── time
-│   ├── AnalogClock.stories.tsx
-│   ├── AnalogClock.tsx
-│   ├── ClockPanel.stories.tsx
-│   ├── ClockPanel.tsx
-│   ├── DigitalClock.stories.tsx
-│   └── DigitalClock.tsx
-├── timeline
-│   ├── category-visuals.ts
-│   ├── daily-progress-bar.tsx
-│   ├── day-timeline.stories.tsx
-│   ├── day-timeline.tsx
-│   ├── index.ts
-│   ├── next-up-banner.stories.tsx
-│   ├── next-up-banner.tsx
-│   ├── now-cursor.tsx
-│   ├── points-fly-up.tsx
-│   ├── time-axis.tsx
-│   └── timeline-task-card.tsx
-└── timers
-    ├── circular-timer.stories.tsx
-    ├── circular-timer.tsx
-    ├── index.ts
-    ├── pomodoro-view.stories.tsx
-    └── pomodoro-view.tsx
-=== lib ===
-not found
-=== src/lib ===
-src/lib
-├── actions
-│   ├── achievements.ts
-│   ├── alarms.ts
-│   ├── checklists.ts
-│   ├── cinema.ts
-│   ├── day-templates.ts
-│   ├── emotions.ts
-│   ├── ensure-today-instances.ts
-│   ├── knowledge.ts
-│   ├── meals.ts
-│   ├── notifications.ts
-│   ├── rewards.ts
-│   ├── school-diary.ts
-│   └── tasks.ts
-├── api
-│   ├── achievements.ts
-│   ├── alarms.ts
-│   ├── checklists.ts
-│   ├── child-home.ts
-│   ├── children.ts
-│   ├── cinema.ts
-│   ├── dashboard.ts
-│   ├── day-view.ts
-│   ├── emotions.ts
-│   ├── knowledge.ts
-│   ├── meals.ts
-│   ├── notifications.ts
-│   ├── parent-nav.ts
-│   ├── rewards.ts
-│   ├── school-diary.ts
-│   ├── task-instances.ts
-│   └── templates.ts
-├── auth
-│   ├── child-session.ts
-│   ├── constants.ts
-│   ├── current-profile.ts
-│   ├── dev-session.ts
-│   ├── guards.ts
-│   ├── index.ts
-│   ├── pin.ts
-│   ├── pin-validation.ts
-│   ├── role.ts
-│   └── types.ts
-├── day-templates
-│   ├── balance.ts
-│   ├── constants.ts
-│   ├── date.ts
-│   ├── kind-inference.ts
-│   ├── plan-items.ts
-│   ├── school-calendar.ts
-│   ├── time.ts
-│   ├── timeline.ts
-│   └── types.ts
-├── demo
-│   ├── achievements-store.ts
-│   ├── alarms-store.ts
-│   ├── cinema-store.ts
-│   ├── day-templates-store.ts
-│   ├── gamification-store.ts
-│   ├── knowledge-store.ts
-│   ├── school-diary-store.ts
-│   └── wellbeing-store.ts
-├── domain
-│   ├── achievements.test.ts
-│   ├── achievements.ts
-│   ├── alarms.ts
-│   ├── assignments.ts
-│   ├── checklists.ts
-│   ├── cinema-rotation.test.ts
-│   ├── cinema-rotation.ts
-│   ├── dashboard.ts
-│   ├── emotion-logs.ts
-│   ├── knowledge.test.ts
-│   ├── knowledge.ts
-│   ├── meals.ts
-│   ├── points.ts
-│   └── task-status.ts
-├── hooks
-│   ├── useCurrentTime.ts
-│   ├── useFeedbackPreferences.ts
-│   ├── useFormField.ts
-│   ├── useParentNavBadges.ts
-│   ├── useTaskInstanceStatus.ts
-│   └── useTheme.ts
-├── navigation
-│   ├── parent-breadcrumb.ts
-│   └── parent-nav-badges.ts
-├── preferences
-│   ├── feedback.ts
-│   └── onboarding.ts
-├── supabase
-│   ├── admin.ts
-│   ├── client.ts
-│   ├── env.ts
-│   ├── middleware.ts
-│   ├── route.ts
-│   └── server.ts
-├── time
-│   ├── daylight.ts
-│   ├── family-location.server.ts
-│   └── family-location.ts
-└── utils
-    ├── haptic.ts
-    ├── index.ts
-    ├── network.ts
-    ├── season.ts
-    ├── sounds.ts
-    └── time.ts
-=== styles ===
-not found
-=== src/styles ===
-not found
-=== tests ===
-not found
-=== src/__tests__ ===
-src/__tests__
-├── child
-│   ├── achievements
-│   │   └── achievement-badge.test.tsx
-│   ├── checklists
-│   │   ├── checklist-card.test.tsx
-│   │   └── checklist-item-row.test.tsx
-│   ├── cinema
-│   │   └── movie-option-card.test.tsx
-│   ├── emotions
-│   │   └── emotion-picker.test.tsx
-│   ├── knowledge
-│   │   └── knowledge-card-tile.test.tsx
-│   ├── meals
-│   │   └── meal-card.test.tsx
-│   └── my-day
-│       └── child-day-view-live.test.tsx
-├── child-home
-│   ├── daylight-segmentation.test.ts
-│   ├── en-ce-moment-card.test.tsx
-│   ├── header-components.test.tsx
-│   ├── page.test.tsx
-│   └── tools-and-knowledge-card.test.tsx
-├── day-templates
-│   └── day-templates-overlap.test.ts
-├── ds
-│   ├── components.test.tsx
-│   ├── empty-state.test.tsx
-│   ├── skeleton.test.tsx
-│   └── toast.test.tsx
-├── hooks
-│   └── useTheme.test.tsx
-├── layout
-│   ├── __snapshots__
-│   │   ├── parent-nav-config.test.ts.snap
-│   │   └── parent-sidebar.test.tsx.snap
-│   ├── child-shell-navigation.test.tsx
-│   ├── more-menu.test.tsx
-│   ├── parent-header.test.tsx
-│   ├── parent-nav-config.test.ts
-│   └── parent-sidebar.test.tsx
-├── timeline
-│   ├── day-timeline.test.tsx
-│   ├── next-up-banner.test.tsx
-│   ├── now-cursor.test.tsx
-│   └── timeline-task-card.test.tsx
-├── timers
-│   ├── circular-timer.test.tsx
-│   └── pomodoro-view.test.tsx
-├── alarms-domain.test.ts
-├── assignation-domain.test.ts
-├── auth-pages.test.tsx
-├── button.test.tsx
-├── calendar-panel.test.tsx
-├── checklists-domain.test.ts
-├── ChildAlarmCenter.test.tsx
-├── dashboard-domain.test.ts
-├── date-display.test.tsx
-├── day-view.test.ts
-├── emotion-logs-domain.test.ts
-├── meals-domain.test.ts
-├── month-strip.test.tsx
-├── ParentAlarmsManager.test.tsx
-├── ParentDashboard.test.tsx
-├── points-domain.test.ts
-├── school-calendar.test.ts
-├── season-utils.test.ts
-├── timeline-helpers.test.ts
-├── time-utils.test.ts
-└── use-current-time.test.tsx
-=== __tests__ ===
-not found
-=== docs ===
-docs
-├── accessibility.md
-├── alarms-module.md
-├── animations-and-feedback.md
-├── architecture-overview.md
-├── backlog-phase2-priorise.md
-├── child-home.md
-├── child-home-logic.md
-├── child-home-redesign.md
-├── child-modules-redesign.md
-├── cinema-module.md
-├── day-templates-and-school-calendar.md
-├── day-templates-and-timeline.md
-├── design-system.md
-├── design-system-basics.md
-├── design-system-brief-v1.md
-├── existant-produit-ezra.md
-├── family-meals-and-emotions.md
-├── gamification-and-timers.md
-├── knowledge-and-achievements.md
-├── navigation-map-devices.md
-├── notifications.md
-├── page-specs-parent-enfant.md
-├── parent-dashboard.md
-├── parent-dashboard-and-modules.md
-├── parent-layout-and-nav.md
-├── product-ux-overview.md
-├── project-snapshot.md
-├── pwa-behavior.md
-├── school-diary-and-checklists.md
-├── timeline-and-focus.md
-├── ui-time-calendar.md
-└── ux-blueprint-premium.md
+  calendar/
+    CalendarPanel.stories.tsx
+    CalendarPanel.tsx
+    DateDisplay.tsx
+    MonthStrip.tsx
+    SeasonBadge.tsx
+  child/
+    achievements/
+      achievement-badge.stories.tsx
+      achievement-badge.tsx
+      achievement-unlock-celebration.stories.tsx
+      achievement-unlock-celebration.tsx
+      child-achievements-view.tsx
+      index.ts
+    checklists/
+      checklist-item-row.stories.tsx
+      checklist-item-row.tsx
+    child-home-live.tsx
+    cinema/
+      child-cinema-view.tsx
+      index.ts
+      movie-option-card.stories.tsx
+      movie-option-card.tsx
+    emotions/
+      child-emotions-view.tsx
+      emotion-check-in-card.tsx
+      emotion-picker.stories.tsx
+      emotion-picker.tsx
+      index.ts
+      week-emotion-strip.tsx
+    focus/
+      __tests__/
+        focus-view.test.tsx
+      focus-instructions-sections.tsx
+      focus-view.tsx
+    home/
+      child-home-now-card.tsx
+      index.ts
+      tools-and-knowledge-card.tsx
+    icons/
+      child-premium-icons.tsx
+    knowledge/
+      child-knowledge-view.tsx
+      index.ts
+      knowledge-card-detail.tsx
+      knowledge-card-tile.stories.tsx
+      knowledge-card-tile.tsx
+      subject-card.stories.tsx
+      subject-card.tsx
+    meals/
+      child-meals-view.tsx
+      favorite-meals-list.tsx
+      index.ts
+      meal-card.stories.tsx
+      meal-card.tsx
+    my-day/
+      active-task-card.tsx
+      child-day-timeline-view.tsx
+      child-day-view-live.tsx
+    revisions/
+      __tests__/
+        revision-card-view.test.tsx
+        revision-quiz.test.tsx
+      index.ts
+      RevisionCardView.tsx
+      RevisionQuiz.tsx
+    today/
+      index.ts
+      time-block-drawer.tsx
+      time-grid-timeline.tsx
+      today-data.tsx
+      today-header.tsx
+      today-rewards.tsx
+      types.ts
+      weekday-strip.tsx
+    tomorrow/
+      child-tomorrow-view.tsx
+      index.ts
+  ds/
+    avatar.stories.tsx
+    avatar.tsx
+    badge.stories.tsx
+    badge.tsx
+    button.stories.tsx
+    button.tsx
+    card.stories.tsx
+    card.tsx
+    category-icons.tsx
+    empty-state.stories.tsx
+    empty-state.tsx
+    index.ts
+    input.stories.tsx
+    input.tsx
+    modal.stories.tsx
+    modal.tsx
+    page-layout.stories.tsx
+    page-layout.tsx
+    progress-bar.stories.tsx
+    progress-bar.tsx
+    rich-text-editor.tsx
+    select.stories.tsx
+    select.tsx
+    skeleton.stories.tsx
+    skeleton.tsx
+    tab-bar.stories.tsx
+    tab-bar.tsx
+    textarea.stories.tsx
+    textarea.tsx
+    theme-provider.tsx
+    theme-script.tsx
+    theme-toggle.stories.tsx
+    theme-toggle.tsx
+    toast.stories.tsx
+    toast.tsx
+  feedback/
+    child-feedback-banner.tsx
+    network-status-banner.tsx
+    parent-feedback-banner.tsx
+  knowledge/
+  layout/
+    auth-shell.tsx
+    child-shell.tsx
+    child-theme-lock.tsx
+    more-menu.tsx
+    parent-header.tsx
+    parent-shell.tsx
+    parent-sidebar.tsx
+    placeholder-page.tsx
+```
+```text
+  missions/
+    __tests__/
+      focus-mode-mission.test.tsx
+      mappers.test.ts
+      mission-drawer.test.tsx
+      missions-card.test.tsx
+    FocusModeMission.tsx
+    index.ts
+    mappers.ts
+    MissionDrawer.tsx
+    MissionRow.tsx
+    MissionsCard.tsx
+    types.ts
+    useMissionsToday.ts
+  motion/
+    fade-in.tsx
+    index.ts
+    list-stagger.stories.tsx
+    list-stagger.tsx
+    page-transition.stories.tsx
+    page-transition.tsx
+    scale-on-tap.tsx
+  notifications/
+    index.ts
+    NotificationBanner.tsx
+    NotificationCenter.tsx
+  onboarding/
+    child-onboarding-overlay.tsx
+    parent-onboarding-modal.tsx
+  parent/
+    dashboard/
+      dashboard-date.ts
+      emotions-widget.stories.tsx
+      emotions-widget.tsx
+      index.ts
+      kpi-card.stories.tsx
+      kpi-card.tsx
+      meals-widget.stories.tsx
+      meals-widget.tsx
+      parent-dashboard-skeleton.tsx
+      school-diary-widget.stories.tsx
+      school-diary-widget.tsx
+      today-load-widget.stories.tsx
+      today-load-widget.tsx
+      weekly-points-widget.stories.tsx
+      weekly-points-widget.tsx
+      weekly-tasks-widget.stories.tsx
+      weekly-tasks-widget.tsx
+  preferences/
+    feedback-preferences-card.tsx
+  time/
+    AnalogClock.stories.tsx
+    AnalogClock.tsx
+    ClockPanel.stories.tsx
+    ClockPanel.tsx
+    DigitalClock.stories.tsx
+    DigitalClock.tsx
+  timeline/
+    category-visuals.ts
+    daily-progress-bar.tsx
+    day-timeline.stories.tsx
+    day-timeline.tsx
+    index.ts
+    next-up-banner.stories.tsx
+    next-up-banner.tsx
+    now-cursor.tsx
+    points-fly-up.tsx
+    time-axis.tsx
+    timeline-task-card.tsx
+  timers/
+    circular-timer.stories.tsx
+    circular-timer.tsx
+    index.ts
+    pomodoro-view.stories.tsx
+    pomodoro-view.tsx
+  weather/
+    SunCycle.tsx
+    WeatherHero.tsx
+    WeatherIcon.tsx
+    WeatherPanel.tsx
 ```
 
-### 2.2 Purpose of top folders
-- `src/app`: Next App Router entrypoints (pages/layouts/loading/templates) and API route handlers.
-- `src/components`: UI layers: domain screens (`child/*`, `parent/*`), timeline widgets (`timeline/*`), DS primitives (`ds/*`), layout shells (`layout/*`).
-- `src/lib`: app logic and data access (server actions, API services, domain rules, hooks, Supabase clients, demo fallback stores).
-- `styles` / `src/styles`: `not found`; global styling is in `src/app/globals.css`.
-- `tests` / `__tests__` (root): `not found`; tests are under `src/__tests__` and `e2e`.
-- `docs`: product and architecture docs.
+#### `src/lib`
 
-## 3) Routing map for "Ma journee" and "Timeline"
+```text
+src/lib
+  actions/
+    achievements.ts
+    alarms.ts
+    checklists.ts
+    cinema.ts
+    day-templates.ts
+    emotions.ts
+    ensure-today-instances.ts
+    knowledge.ts
+    meals.ts
+    notifications.ts
+    rewards.ts
+    school-diary.ts
+    tasks.ts
+  api/
+    achievements.ts
+    alarms.ts
+    checklists.ts
+    child-home.ts
+    children.ts
+    cinema.ts
+    dashboard.ts
+    day-view.ts
+    emotions.ts
+    knowledge.ts
+    meals.ts
+    notifications.ts
+    parent-nav.ts
+    revisions.ts
+    rewards.ts
+    school-diary.ts
+    task-instances.ts
+    templates.ts
+  auth/
+    child-session.ts
+    constants.ts
+    current-profile.ts
+    dev-session.ts
+    guards.ts
+    index.ts
+    pin.ts
+    pin-validation.ts
+    role.ts
+    types.ts
+  day-templates/
+    balance.ts
+    category-validation.ts
+    constants.ts
+    date.ts
+    focus.ts
+    instructions.ts
+    kind-inference.ts
+    plan-items.ts
+    school-calendar.ts
+    template-task-validation.ts
+    time.ts
+    timeline.ts
+    types.ts
+  demo/
+    achievements-store.ts
+    alarms-store.ts
+    cinema-store.ts
+    day-templates-store.ts
+    gamification-store.ts
+    knowledge-store.ts
+    revisions-store.ts
+    school-diary-store.ts
+    wellbeing-store.ts
+  domain/
+    achievements.test.ts
+    achievements.ts
+    alarms.ts
+    assignments.ts
+    checklists.ts
+    cinema-rotation.test.ts
+    cinema-rotation.ts
+    dashboard.ts
+    emotion-logs.ts
+    knowledge.test.ts
+    knowledge.ts
+    meals.ts
+    points.ts
+    task-status.ts
+  hooks/
+    useCurrentTime.ts
+    useFeedbackPreferences.ts
+    useFormField.ts
+    useParentNavBadges.ts
+    useTaskInstanceStatus.ts
+    useTheme.ts
+  navigation/
+    parent-breadcrumb.ts
+    parent-nav-badges.ts
+  preferences/
+    feedback.ts
+    onboarding.ts
+  revisions/
+    index.ts
+    mappers.ts
+    types.ts
+    validation.ts
+  supabase/
+    admin.ts
+    client.ts
+    env.ts
+    middleware.ts
+    route.ts
+    server.ts
+  time/
+    daylight.ts
+    day-segments.ts
+    family-location.server.ts
+    family-location.ts
+  utils/
+    haptic.ts
+    index.ts
+    network.ts
+    season.ts
+    sounds.ts
+    time.ts
+  weather/
+    date.ts
+    forecast-aggregation.ts
+    openweathermap.ts
+    service.ts
+    types.ts
+```
+#### `src/__tests__`
+
+```text
+src/__tests__
+  alarms-domain.test.ts
+  assignation-domain.test.ts
+  auth-pages.test.tsx
+  button.test.tsx
+  calendar-panel.test.tsx
+  checklists-domain.test.ts
+  child/
+    achievements/
+      achievement-badge.test.tsx
+    checklists/
+      checklist-item-row.test.tsx
+    cinema/
+      movie-option-card.test.tsx
+    emotions/
+      emotion-picker.test.tsx
+    knowledge/
+      knowledge-card-tile.test.tsx
+    meals/
+      meal-card.test.tsx
+    my-day/
+      child-day-timeline-view.test.tsx
+      child-day-view-live.test.tsx
+      focus-view-overlay.test.tsx
+    revisions/
+      child-revision-page.test.tsx
+    tomorrow/
+      child-tomorrow-view.test.tsx
+  ChildAlarmCenter.test.tsx
+  child-home/
+    daylight-segmentation.test.ts
+    day-segments.test.ts
+    en-ce-moment-card.test.tsx
+    page.test.tsx
+    today-data-grouping.test.ts
+    today-header-v2.test.tsx
+    tools-and-knowledge-card.test.tsx
+    weekday-strip.test.tsx
+  dashboard-domain.test.ts
+  date-display.test.tsx
+  day-templates/
+    category-icon-validation.test.ts
+    day-templates-overlap.test.ts
+    instructions.test.ts
+    subkind-suggestions-by-category.test.ts
+    template-editor-subkind.test.tsx
+  day-view.test.ts
+  ds/
+    category-icons.test.tsx
+    components.test.tsx
+    empty-state.test.tsx
+    skeleton.test.tsx
+    toast.test.tsx
+  emotion-logs-domain.test.ts
+  hooks/
+    useTheme.test.tsx
+  layout/
+    __snapshots__/
+      parent-nav-config.test.ts.snap
+      parent-sidebar.test.tsx.snap
+    child-shell-navigation.test.tsx
+    more-menu.test.tsx
+    parent-header.test.tsx
+    parent-nav-config.test.ts
+    parent-sidebar.test.tsx
+  lib/
+    checklists-tomorrow-key-moments.test.ts
+    focus-eligibility.test.ts
+    forecast-aggregation.test.ts
+    openweathermap.test.ts
+    templates-child-pin-admin.test.ts
+    weather-service.test.ts
+  meals-domain.test.ts
+  month-strip.test.tsx
+  ParentAlarmsManager.test.tsx
+  ParentDashboard.test.tsx
+  points-domain.test.ts
+  revisions/
+    api.test.ts
+    validation.test.ts
+  school-calendar.test.ts
+  season-utils.test.ts
+  timeline/
+    day-timeline.test.tsx
+    next-up-banner.test.tsx
+    now-cursor.test.tsx
+    timeline-task-card.test.tsx
+  timeline-helpers.test.ts
+  timers/
+    circular-timer.test.tsx
+    pomodoro-view.test.tsx
+  time-utils.test.ts
+  use-current-time.test.tsx
+```
+
+#### `docs`
+
+```text
+docs
+  accessibility.md
+  alarms-module.md
+  animations-and-feedback.md
+  architecture-overview.md
+  backlog-phase2-priorise.md
+  categories.md
+  child-home.md
+  child-home-logic.md
+  child-home-redesign.md
+  child-modules-redesign.md
+  cinema-module.md
+  day-templates-and-school-calendar.md
+  day-templates-and-timeline.md
+  design-system.md
+  design-system-basics.md
+  design-system-brief-v1.md
+  existant-produit-ezra.md
+  family-meals-and-emotions.md
+  gamification-and-timers.md
+  header-density.md
+  header-design-gap.md
+  instructions.md
+  knowledge-and-achievements.md
+  missions-instructions.md
+  navigation-map-devices.md
+  notifications.md
+  page-specs-parent-enfant.md
+  parent-dashboard.md
+  parent-dashboard-and-modules.md
+  parent-layout-and-nav.md
+  product-ux-overview.md
+  project-snapshot.md
+  pwa-behavior.md
+  revisions.md
+  school-diary-and-checklists.md
+  timeline-and-focus.md
+  ui-system.md
+  ui-time-calendar.md
+  ux/
+    ma-journee-ux-spec.md
+    tomorrow-ux-spec.md
+  ux-blueprint-premium.md
+  weather.md
+```
+
+### 2.3 Purpose of each top folder (based on filenames/imports)
+
+| Folder | Purpose (evidence-based) |
+|---|---|
+| `src/app` | Next App Router pages/layouts/loading/error + route handlers (`src/app/api/**`) |
+| `src/components` | UI layer: child/parent screens, DS primitives (`src/components/ds/**`), motion, timeline, icons |
+| `src/lib` | Data/domain/services: Supabase access, server actions, API aggregators, domain rules, hooks, demo fallback stores |
+| `src/styles` | not found |
+| `src/__tests__` | unit/integration tests (Vitest + Testing Library) |
+| `docs` | product/UX/architecture specs and module docs |
+
+## 3) "Ma journee" and "Timeline" implementation
 
 ### 3.1 Exact routes and file paths
-| UX target | URL | Route file path | Evidence |
-|---|---|---|---|
-| Child home simplified now/next card | `/child` | `src/app/(child)/child/page.tsx` | route returns `ChildHomeLive` |
-| "Ma journee" page | `/child/my-day` | `src/app/(child)/child/my-day/page.tsx` | fetches day timeline data and renders `ChildDayViewLive` |
-| Timeline View (mobile) | `/child/my-day` (same route) | `src/components/child/my-day/child-day-view-live.tsx` | `mobileViewMode` toggles `guided` vs `timeline` (`:851-878`) |
-| Focus sub-route | `/child/focus/[instanceId]` | `src/app/(child)/child/focus/[instanceId]/page.tsx` | my-day tab `matchPrefixes` includes `/child/focus` (`src/components/layout/child-shell.tsx:164`) |
 
-Conclusion: no dedicated `/child/timeline` route was found; Timeline View is a mode inside `/child/my-day`.
-
-### 3.2 Required string search results
-Search scope: `src`, `e2e`, `docs`.
-
-- `"Ma journée"`: found in tests/docs; UI heading code uses `"Ma journee"` (`src/components/child/my-day/child-day-view-live.tsx:815`).
-- `"Timeline"`: found in mode switch and tests (`src/components/child/my-day/child-day-view-live.tsx:328`).
-- `"Maintenant"`: found in now/timeline UI (`src/components/child/home/child-home-now-card.tsx:192`, `src/components/timeline/next-up-banner.tsx:40`).
-- `"Ensuite"`: found in now/timeline UI (`src/components/child/home/child-home-now-card.tsx:233`, `src/components/timeline/next-up-banner.tsx:29,44,54`).
-- `"Plus tard"`: found in guided section (`src/components/child/my-day/child-day-view-live.tsx:536`).
-- `"Je continue"`: `not found`.
-- `"Voir ma journée"` (accented): `not found`.
-- `"Voir ma journee"` (unaccented): found (`src/components/child/home/child-home-now-card.tsx:262`).
-
-## 4) Component inventory for these screens
-
-### 4.1 Route-level and screen components
-| Component | Path | Client/server | Key props (type defs) | Used in |
+| Screen | URL | Route file | Loading file | Proof |
 |---|---|---|---|---|
-| `ChildHomePage` | `src/app/(child)/child/page.tsx` | server | route component | URL `/child` |
-| `ChildHomeLive` | `src/components/child/child-home-live.tsx` | client | `data`, `initialDateIso`, `timezone`, `isLoading` (`:9`) | `src/app/(child)/child/page.tsx`, `src/app/(child)/child/loading.tsx` |
-| `TodayHeader` | `src/components/child/home/today-header.tsx` | client | `date`, `timezone`, `className`, `isLoading` (`:7`) | local in `ChildHomeLive` |
-| `ChildHomeNowCard` | `src/components/child/home/child-home-now-card.tsx` | client | `nowState`, `currentTask`, `nextTask`, `activeSchoolBlockEndTime`, `className`, `isLoading` (`:17`) | local in `ChildHomeLive` |
-| `ToolsAndKnowledgeCard` | `src/components/child/home/tools-and-knowledge-card.tsx` | client | `className` (`:9`) | local in `ChildHomeLive` |
-| `ChildMyDayPage` | `src/app/(child)/child/my-day/page.tsx` | server | route component | URL `/child/my-day` |
-| `ChildDayViewLive` | `src/components/child/my-day/child-day-view-live.tsx` | client | `instances`, `templateBlocks`, `dayContext`, `templateName`, `initialDailyPointsTotal`, `rewardTiers`, `hasTemplate`, `childName`, `isLoading`, `v2Enabled`, `timelineItems`, `currentContextItem`, `currentActionItem`, `nextTimelineItem`, `dayBalance` (`:38`) | `src/app/(child)/child/my-day/page.tsx`, `src/app/(child)/child/my-day/loading.tsx` |
-| `ChildShell` | `src/components/layout/child-shell.tsx` | client | `children`, `checklistBadgeCount`, `childProfileId`, `childDisplayName` (`:23`) | `src/app/(child)/layout.tsx` |
-| `TabBar` | `src/components/ds/tab-bar.tsx` | client | `items`, `className` (`:37`) | imported in `src/components/layout/child-shell.tsx` via DS barrel |
+| Ma journee (simplified/live view) | `/child/my-day` | `src/app/(child)/child/my-day/page.tsx` | `src/app/(child)/child/my-day/loading.tsx` | page renders `ChildDayViewLive` (`page.tsx:60-75`), loading renders `<ChildDayViewLive isLoading />` (`loading.tsx:1-4`) |
+| Timeline view | `/child/my-day/timeline` | `src/app/(child)/child/my-day/timeline/page.tsx` | `src/app/(child)/child/my-day/timeline/loading.tsx` | page renders `ChildDayTimelineView` (`timeline/page.tsx:49-58`), loading renders `<ChildDayTimelineView isLoading />` (`timeline/loading.tsx:1-4`) |
 
-### 4.2 Timeline-related components used by `/child/my-day`
-| Component | Path | Client/server | Key props | Used in |
+Related navigation routes:
+- From my-day simplified -> timeline: `router.push("/child/my-day/timeline")` at `src/components/child/my-day/child-day-view-live.tsx:449`.
+- From timeline -> simplified: `router.push("/child/my-day")` at `src/components/child/my-day/child-day-timeline-view.tsx:433,456,616`.
+
+### 3.2 String search results for requested labels
+
+Search terms requested: `Ma journee`, `Timeline`, `Maintenant`, `Ensuite`, `Plus tard`, `Je continue`, `Voir ma journee`.
+
+| Term | Found? | Paths |
+|---|---|---|
+| `Ma journee` | yes | `src/components/child/my-day/child-day-view-live.tsx:579`, onboarding copy at `src/components/onboarding/child-onboarding-overlay.tsx:32` |
+| `Timeline` | yes | heading and section in `src/components/child/my-day/child-day-timeline-view.tsx:439,555` |
+| `Maintenant` | yes | `src/components/child/my-day/active-task-card.tsx:64`; also timeline/home components |
+| `Ensuite` | yes | `src/components/child/home/child-home-now-card.tsx:74,201`; legacy banner `src/components/timeline/next-up-banner.tsx` |
+| `Plus tard` | yes | `src/components/child/my-day/child-day-view-live.tsx:231` |
+| `Je continue` | not found | full-code search returned no match |
+| `Voir ma journee` | yes | `src/components/child/home/child-home-now-card.tsx:271` |
+### 3.3 Component inventory for these screens
+
+#### A) Runtime component graph (`/child/my-day` and `/child/my-day/timeline`)
+
+| Component | File | Client/Server | Key props (from types) | Used in |
 |---|---|---|---|---|
-| `DailyProgressBar` | `src/components/timeline/daily-progress-bar.tsx` | shared | `pointsEarned`, `pointsTarget`, `tasksCompleted`, `tasksTotal` (`:3`) | imported in `src/components/child/my-day/child-day-view-live.tsx` |
-| `DayTimeline` | `src/components/timeline/day-timeline.tsx` | client | `tasks`, `blocks`, `dayContext`, `currentTime`, `pendingInstanceId`, `pointsFlyUpByInstanceId`, `onStatusChange`, `onFocusMode`, `childName`, `showBanner`, `compact`, `autoScrollToCurrent`, `showDetailPanel`, `className` (`:22`) | imported in `src/components/child/my-day/child-day-view-live.tsx` |
-| `NextUpBanner` | `src/components/timeline/next-up-banner.tsx` | client | `currentTask`, `nextTask`, `currentMessage`, `className` (`:13`) | imported in `src/components/timeline/day-timeline.tsx` |
-| `NowCursor` | `src/components/timeline/now-cursor.tsx` | client | range/timeline sizing + optional currentTime/label props (`:9`) | imported in `src/components/timeline/day-timeline.tsx` |
-| `TimeAxis` | `src/components/timeline/time-axis.tsx` | shared | markers/range/height props (`:3`) | imported in `src/components/timeline/day-timeline.tsx` |
-| `TimelineTaskCard` | `src/components/timeline/timeline-task-card.tsx` | client | instance metadata, status/phase flags, action callbacks, density/select props (`:13`) | imported in `src/components/timeline/day-timeline.tsx` |
-| `PointsFlyUp` | `src/components/timeline/points-fly-up.tsx` | client | `points`, `sequence` (`:5`) | imported in `src/components/timeline/timeline-task-card.tsx` |
+| `ChildMyDayPage` | `src/app/(child)/child/my-day/page.tsx` | server route (no `use client`) | n/a | App Router page |
+| `ChildMyDayTimelinePage` | `src/app/(child)/child/my-day/timeline/page.tsx` | server route | n/a | App Router page |
+| `ChildDayViewLive` | `src/components/child/my-day/child-day-view-live.tsx` | client (`:1`) | `instances`, `templateBlocks`, `dayContext`, `rewardTiers`, `v2Enabled`, `timelineItems`, `currentActionItem`, `dayBalance` (`:42-56`) | imported in `src/app/(child)/child/my-day/page.tsx:1`, `src/app/(child)/child/my-day/loading.tsx:1` |
+| `ChildDayTimelineView` | `src/components/child/my-day/child-day-timeline-view.tsx` | client (`:1`) | `instances`, `templateBlocks`, `dayContext`, `hasTemplate`, `v2Enabled`, `timelineItems`, `currentActionItem` (`:32-42`) | imported in `src/app/(child)/child/my-day/timeline/page.tsx:1`, `.../timeline/loading.tsx:1` |
+| `ActiveTaskCard` | `src/components/child/my-day/active-task-card.tsx` | client (`:1`) | `task`, `isPaused`, `isPending`, `showFocusAction`, callbacks (`onComplete`, `onPauseToggle`, `onFocus`, `onOpenTimeline`) (`:9-18`) | imported in `src/components/child/my-day/child-day-view-live.tsx:10` |
+| `FocusView` | `src/components/child/focus/focus-view.tsx` | client (`:1`) | `instance`, `presentation`, `isTaskPaused`, `onClose`, `onSessionComplete`, `calmPomodoroOnly` (`:18-24`) | imported in `child-day-view-live.tsx:11`, `child-day-timeline-view.tsx:12`, and standalone focus page |
+| `ChildShell` | `src/components/layout/child-shell.tsx` | client (`:1`) | `children`, `checklistBadgeCount`, `childProfileId`, `childDisplayName` (`:17-22`) | imported in `src/app/(child)/layout.tsx:1` |
+| `TabBar` (bottom nav) | `src/components/ds/tab-bar.tsx` | client (`:1`) | `items: TabBarItemConfig[]`, optional `className` (`:24-39`) | rendered in `src/components/layout/child-shell.tsx:159` |
+| `ChildThemeLock` | `src/components/layout/child-theme-lock.tsx` | client (`:1`) | none | imported in `src/app/(child)/layout.tsx:2` |
 
-### 4.3 Internal subcomponents inside `ChildDayViewLive`
-All local to `src/components/child/my-day/child-day-view-live.tsx`:
-- `MobileModeToggle` (`:301`)
-- `CurrentFocusCard` (`:334`)
-- `NextTaskCard` (`:439`)
-- `DayBalanceUnitsCard` (`:480`)
-- `LaterTasksCard` (`:526`)
-- `HelpCard` (`:568`)
+#### B) Related but not currently wired to runtime my-day route chain
 
-## 5) Required short excerpts (10-30 lines each)
+| Component/module | Path | Evidence |
+|---|---|---|
+| `ChildHomeNowCard` (contains `Voir ma journee` CTA) | `src/components/child/home/child-home-now-card.tsx` | exported in `src/components/child/home/index.ts:1`, but no runtime imports in app pages/components (`rg ChildHomeNowCard` only found tests + file + index) |
+| Legacy timeline suite (`DayTimeline`, `TimelineTaskCard`, `NowCursor`, `NextUpBanner`) | `src/components/timeline/*` | imports found in stories/tests and within that suite; no import from `src/app/(child)/child/my-day/*` |
+| `TimeGridTimeline` | `src/components/child/today/time-grid-timeline.tsx` | exported in `src/components/child/today/index.ts:2`, no runtime import found |
 
-### 5.1 Top-level route file (`/child/my-day`)
-File: `src/app/(child)/child/my-day/page.tsx`
+### 3.4 Required short excerpts (10-30 lines each)
+
+#### A) Top-level route file (`/child/my-day`)
+
 ```tsx
-54: export default async function ChildMyDayPage(): Promise<React.JSX.Element> {
-55:   const context = await getCurrentProfile();
-56:   const profileId = context.profile?.id;
-57:   const timelineData = profileId ? await getTodayTemplateWithTasksForProfileV2(profileId) : getEmptyTimelineData();
-58:
-59:   return (
-60:     <ChildDayViewLive
-61:       instances={timelineData.instances}
-62:       templateBlocks={timelineData.blocks}
-63:       dayContext={timelineData.dayContext}
-64:       templateName={timelineData.template?.name ?? "Journee type"}
-65:       initialDailyPointsTotal={timelineData.dailyPoints?.pointsTotal ?? 0}
-66:       rewardTiers={timelineData.rewardTiers}
-67:       hasTemplate={Boolean(timelineData.template)}
-68:       childName={getFirstName(context.profile?.display_name)}
-69:       v2Enabled={timelineData.v2Enabled}
-70:       timelineItems={timelineData.timelineItems}
-71:       currentContextItem={timelineData.currentContextItem}
-72:       currentActionItem={timelineData.currentActionItem}
-73:       nextTimelineItem={timelineData.nextTimelineItem}
-74:       dayBalance={timelineData.dayBalance}
+ 54: export default async function ChildMyDayPage(): Promise<React.JSX.Element> {
+ 55:   const context = await getCurrentProfile();
+ 56:   const profileId = context.profile?.id;
+ 57:   const timelineData = profileId ? await getTodayTemplateWithTasksForProfileV2(profileId) : getEmptyTimelineData();
+ 58: 
+ 59:   return (
+ 60:     <ChildDayViewLive
+ 61:       instances={timelineData.instances}
+ 62:       templateBlocks={timelineData.blocks}
+ 63:       dayContext={timelineData.dayContext}
+ 64:       templateName={timelineData.template?.name ?? "Journee type"}
+ 65:       initialDailyPointsTotal={timelineData.dailyPoints?.pointsTotal ?? 0}
+ 66:       rewardTiers={timelineData.rewardTiers}
+ 67:       hasTemplate={Boolean(timelineData.template)}
+ 68:       childName={getFirstName(context.profile?.display_name)}
+ 69:       v2Enabled={timelineData.v2Enabled}
+ 70:       timelineItems={timelineData.timelineItems}
+ 71:       currentContextItem={timelineData.currentContextItem}
+ 72:       currentActionItem={timelineData.currentActionItem}
+ 73:       nextTimelineItem={timelineData.nextTimelineItem}
+ 74:       dayBalance={timelineData.dayBalance}
+ 75:     />
+ 76:   );
+ 77: }
 ```
 
-### 5.2 Hero/Now card component
-File: `src/components/child/home/child-home-now-card.tsx`
+Source: `src/app/(child)/child/my-day/page.tsx`
+
+#### B) Hero/Now card component
+
 ```tsx
-186:                 <motion.span
-187:                   className="inline-flex h-touch-sm items-center gap-1.5 rounded-radius-pill border border-brand-primary/32 bg-brand-primary/14 px-3 text-xs font-black uppercase tracking-wide text-brand-primary"
-188:                   animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.88, 1, 0.88] }}
-189:                   transition={{ duration: 1.7, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-190:                 >
-191:                   <SparkIcon className="size-3.5" />
-192:                   Maintenant
-193:                 </motion.span>
-194:
-195:                 <p className="text-2xl font-black leading-tight text-text-primary md:text-xl xl:text-2xl">{currentContent.title}</p>
-196:                 <p className="text-sm font-semibold text-text-secondary md:text-sm">{currentContent.timeLabel}</p>
-197:               </div>
-198:
-199:               <div className="relative shrink-0">
-200:                 <span
-201:                   aria-hidden="true"
-202:                   className={cn(
-203:                     "pointer-events-none absolute inset-0 rounded-radius-pill opacity-55 blur-md",
-204:                     currentVisual.haloClass,
-205:                     prefersReducedMotion ? "" : "motion-safe:animate-pulse",
-206:                   )}
-207:                 />
-208:                 <span
-209:                   data-testid={currentTaskTypeIconTestId}
-210:                   className={cn(
+ 58:         <div className="flex items-center justify-between gap-2">
+ 59:           <div className="flex items-center gap-2">
+ 60:             <span className="inline-flex size-9 items-center justify-center rounded-radius-pill border border-brand-primary/25 bg-brand-50 text-brand-primary">
+ 61:               <ClockIcon className="size-5" />
+ 62:             </span>
+ 63:             <h2 className="font-display text-[26px] font-extrabold tracking-[0.01em] text-text-primary">
+ 64:               Maintenant
+ 65:             </h2>
+ 66:           </div>
+ 67:           {isPaused ? <Badge variant="neutral">En pause</Badge> : null}
+ 68:         </div>
+ 69: 
+ 70:         <div className="space-y-1.5">
+ 71:           <p className="truncate text-xl font-bold leading-snug tracking-[0.01em] text-text-primary">{task.title}</p>
+ 72:           <p className="text-base font-medium leading-relaxed text-text-secondary">
+ 73:             {task.startTime} - {task.endTime} · {getDurationLabel(task)}
+ 74:           </p>
+ 75:           <p className="reading text-base leading-relaxed text-text-secondary">
+ 76:             Touchez cette carte pour voir la timeline detaillee.
+ 77:           </p>
+ 78:         </div>
+ 79: 
+ 80:         <div className={cn("grid grid-cols-1 gap-2.5", actionColumnsClass)} onClick={(event) => event.stopPropagation()}>
+ 81:           <Button
+ 82:             size="lg"
+ 83:             variant="primary"
 ```
 
-### 5.3 Timeline component switch section
-File: `src/components/child/my-day/child-day-view-live.tsx`
+Source: `src/components/child/my-day/active-task-card.tsx`
+#### C) Timeline component
+
 ```tsx
-851:           <div className="space-y-3 lg:hidden">
-852:             <MobileModeToggle mode={mobileViewMode} onChange={setMobileViewMode} />
-853:
-854:             {mobileViewMode === "guided" ? (
-855:               <div className="space-y-3">
-856:                 <CurrentFocusCard
-857:                   currentTask={effectiveCurrentTask}
-858:                   nextTask={nextTask}
-859:                   currentContextItem={liveCurrentContextItem}
-860:                   nextTimelineItem={liveNextTimelineItem}
-861:                   dayContext={dayContext}
-862:                   currentMinutes={currentMinutes}
-863:                   pendingInstanceId={pendingInstanceId}
-864:                   onStatusChange={handleStatusChange}
-865:                   onFocusMode={handleFocusMode}
-866:                 />
-867:                 <NextTaskCard nextTask={nextTask} nextTimelineItem={liveNextTimelineItem} />
-868:                 <LaterTasksCard tasks={laterTasks.slice(0, 5)} currentMinutes={currentMinutes} />
-869:                 <HelpCard />
-870:                 <Button size="lg" variant="secondary" fullWidth onClick={() => setMobileViewMode("timeline")}>
-871:                   Voir la timeline
-872:                 </Button>
-873:               </div>
-874:             ) : (
-875:               <div className="space-y-3">
-876:                 <DayTimeline
-877:                   tasks={timelineTasks}
-878:                   blocks={templateBlocks}
+551:           <Card className="rounded-[20px] border-border-default bg-bg-surface shadow-card">
+552:             <CardContent className="space-y-3 p-5">
+553:               <div className="flex items-center justify-between gap-2">
+554:                 <h2 className="font-display text-2xl font-bold tracking-[0.01em] text-text-primary">
+555:                   Timeline
+556:                 </h2>
+557:                 <Badge variant="neutral">{timeline.length} items</Badge>
+558:               </div>
+559: 
+560:               <div className="relative pl-7" data-testid="timeline-vertical-list">
+561:                 <span
+562:                   aria-hidden="true"
+563:                   className="absolute bottom-0 left-3 top-0 w-px bg-border-default"
+564:                 />
+565:                 <ul className="space-y-3">
+566:                   {timeline.map((item) => {
+567:                     const ItemIcon = getKindIcon(item);
+568:                     const isNow = nowItem?.id === item.id;
+569: 
+570:                     return (
+571:                       <li key={item.id} className="relative">
+572:                         <span
+573:                           aria-hidden="true"
+574:                           className={cn(
+575:                             "absolute -left-7 top-3 inline-flex size-6 items-center justify-center rounded-radius-pill border border-border-default bg-bg-surface text-text-secondary",
+576:                             isNow ? "border-brand-primary/40 bg-brand-50 text-brand-primary" : "",
+577:                           )}
+578:                         >
+579:                           <ItemIcon className="size-4" />
 ```
 
-### 5.4 Bottom navigation component
-File: `src/components/layout/child-shell.tsx`
+Source: `src/components/child/my-day/child-day-timeline-view.tsx`
+
+#### D) Bottom navigation component usage
+
 ```tsx
-150:   const childTabs: TabBarItemConfig[] = React.useMemo(
-151:     () => [
-152:       {
-153:         href: "/child",
-154:         label: "Accueil",
-155:         icon: <HomeIcon active={false} />,
-156:         activeIcon: <HomeIcon active />,
-157:       },
-158:       {
-159:         href: "/child/my-day",
-160:         label: "Ma journée",
-161:         shortLabel: "Journée",
-162:         icon: <DayIcon active={false} />,
-163:         activeIcon: <DayIcon active />,
-164:         matchPrefixes: ["/child/my-day", "/child/focus"],
-165:       },
+ 98:       {
+ 99:         href: "/child",
+100:         label: "Aujourd'hui",
+101:         shortLabel: "Auj.",
+102:         icon: <TodayIcon active={false} />,
+103:         activeIcon: <TodayIcon active />,
+104:         matchPrefixes: ["/child"],
+105:       },
+106:       {
+107:         href: "/child/checklists",
+108:         label: "Demain",
+109:         shortLabel: "Demain",
+110:         icon: <TomorrowIcon active={false} />,
+111:         activeIcon: <TomorrowIcon active />,
+112:         badgeCount: checklistBadgeCount,
+113:       },
+114:       {
+115:         href: "/child/achievements",
+116:         label: "Recompenses",
+117:         shortLabel: "Recomp.",
+118:         icon: <RewardsIcon active={false} />,
+119:         activeIcon: <RewardsIcon active />,
+120:       },
+121:       {
+122:         href: "/child/tools",
+123:         label: "Outils",
+124:         shortLabel: "Outils",
+125:         icon: <ToolsIcon active={false} />,
+126:         activeIcon: <ToolsIcon active />,
+127:         matchPrefixes: ["/child/tools", "/child/knowledge", "/child/my-day", "/child/focus"],
 ```
 
-## 6) Data/state model inventory (UI drivers)
+Source: `src/components/layout/child-shell.tsx`
 
-### 6.1 Sources of truth
-#### Schedule/day items
-Primary Supabase tables and flow:
-- `day_templates` and `template_tasks` define day plans (`supabase/migrations/20260211100000_day_templates_timeline.sql`).
-- `day_template_blocks` and `school_periods` define contextual blocks (`supabase/migrations/20260213170000_day_template_blocks_school_calendar.sql`).
-- `task_instances` stores per-day actionable instances and status (`supabase/migrations/20260211130000_gamification_points_timers.sql`).
-- Data aggregation in `src/lib/api/day-view.ts`:
-  - V2 conversion: `toTimelineV2Data` (`:240-264`)
-  - Main fetches: `profiles`, `task_instances`, `reward_tiers`, `day_template_blocks`, `school_periods`, `template_tasks`, `task_categories`, `knowledge_cards` (`:369-559`)
-  - Public loader used by page: `getTodayTemplateWithTasksForProfileV2` (`:572-589`)
-- Missing instance generation for today: `src/lib/actions/ensure-today-instances.ts`.
+## 4) Data/State Model Inventory (UI drivers)
 
-#### Task statuses
-- TS type union: `TaskInstanceStatus = "a_faire" | "en_cours" | "termine" | "en_retard" | "ignore"` (`src/lib/day-templates/types.ts:81`).
-- DB status constraint in migration (`20260211130000_gamification_points_timers.sql:10`).
-- Transition rules (`src/lib/domain/task-status.ts`):
-  - `a_faire -> en_cours|termine`
-  - `en_cours -> termine`
-- `paused` status: `not found` in schema/types.
+### 4.1 Sources of truth and data flow
 
-#### Rewards/points
-- Tables: `reward_tiers`, `daily_points` (`20260211130000_gamification_points_timers.sql:20-39`).
-- Points computation: `src/lib/domain/points.ts` (`computePointsForTransition`, `computeNextRewardProgress`).
-- Status update action updates task + daily points: `src/lib/actions/tasks.ts`.
-- UI consumption in my-day: `src/components/child/my-day/child-day-view-live.tsx:843-848` and `src/components/timeline/daily-progress-bar.tsx`.
-- Separate "stars" scoring system: `not found` (star icon exists, but progression logic is points-based).
+#### Primary persistent data (Supabase)
 
-### 6.2 Key types/interfaces
-- `TaskInstanceSummary`: `src/lib/day-templates/types.ts:83`
-- `RewardTierSummary`: `src/lib/day-templates/types.ts:110`
-- `DailyPointsSummary`: `src/lib/day-templates/types.ts:119`
-- `TodayTimelineData`: `src/lib/day-templates/types.ts:132`
-- `DayTimelineItemSummary`: `src/lib/day-templates/types.ts:142`
-- `DayBalanceSummary`: `src/lib/day-templates/types.ts:174`
-- `TodayTimelineV2Data`: `src/lib/day-templates/types.ts:194`
+Tables and shape are defined in migrations and generated DB types:
+- `task_categories` (`supabase/migrations/20260211100000_day_templates_timeline.sql:1`) / `src/types/database.ts:321`
+- `day_templates` (`.../20260211100000...:10`) / `src/types/database.ts:6`
+- `template_tasks` (`.../20260211100000...:19`) / `src/types/database.ts:1804`
+- `day_template_blocks` (`supabase/migrations/20260213170000_day_template_blocks_school_calendar.sql:1`) / `src/types/database.ts:41`
+- `task_instances` (`supabase/migrations/20260211130000_gamification_points_timers.sql:4`) / `src/types/database.ts:362`
+- `reward_tiers` (`.../20260211130000...:20`) / `src/types/database.ts:1766`
+- `daily_points` (`.../20260211130000...:30`) / `src/types/database.ts:445`
 
-### 6.3 Services/hooks/actions involved
-- `src/lib/api/day-view.ts`: server-side day/timeline data retrieval and v2 conversion.
-- `src/lib/api/child-home.ts`: simplified home card data (`nowState`, current/next task, points summary).
-- `src/lib/actions/tasks.ts`: server action for task status transitions and points increments.
-- API route handlers also exist under `src/app/api` (`auth/child/pin`, `auth/child/pin-config`, `auth/parent/login`, `auth/parent/logout`, `auth/parent/register`, `parent/nav-badges`).
-- `src/lib/day-templates/plan-items.ts`: unified timeline items and context/action detection.
-- `src/lib/day-templates/timeline.ts`: task sorting and current/next extraction.
-- `src/lib/day-templates/balance.ts`: 15-minute bucket balance calculation.
-- `src/lib/hooks/useCurrentTime.ts`: live time ticking.
-- `src/lib/hooks/useTaskInstanceStatus.ts`: appears unused (no imports found), potential duplicate state-update abstraction.
+Task statuses and kind constraints:
+- status check in SQL: `a_faire | en_cours | termine | en_retard | ignore` (`20260211130000...:10`)
+- generated type: `src/types/database.ts:376`
+- kind evolution migration: `supabase/migrations/20260219123000_plan_items_kind_v2.sql`
 
-## 7) Design System inventory
+#### Server-side aggregation for my-day/timeline
 
-### 7.1 DS implementation
-- Custom DS lives in `src/components/ds` and is exported via `src/components/ds/index.ts`.
-- DS primitives used by target screens: `Button`, `Card`, `Badge`, `ProgressBar`, `TabBar`, `Modal`, `Toast`.
-- Variants implemented with `class-variance-authority` in DS components (`src/components/ds/button.tsx`).
-- Probe for common external DS kits (`shadcn`, `@radix-ui`, `lucide-react`, `mui`, `antd`) found no matches.
+- Route pages call `getTodayTemplateWithTasksForProfileV2`:
+  - `src/app/(child)/child/my-day/page.tsx:57`
+  - `src/app/(child)/child/my-day/timeline/page.tsx:44-46`
+- Core aggregator: `src/lib/api/day-view.ts`
+  - base load: `getTodayTemplateWithTasksForProfile` (`:309`)
+  - V2 projection: `toTimelineV2Data` (`:282`) and `getTodayTemplateWithTasksForProfileV2` (`:628`)
+  - Supabase queries use `.from(...)` on `profiles`, `task_instances`, `reward_tiers`, `day_template_blocks`, `school_periods`, `template_tasks`, `task_categories`, `daily_points`, `knowledge_cards` (`day-view.ts:257,272,426,464,472,479,486,531,534,560,580`)
+- Ensuring daily instances from template: `src/lib/actions/ensure-today-instances.ts:20-84`
 
-### 7.2 Token sources
-- CSS variables/tokens in `src/app/globals.css:20-100` (colors, radii, shadows, motion, spacing).
-- Tailwind token bindings/extensions in `tailwind.config.ts`:
-  - color maps from `--color-*`
-  - spacing (`touch-sm`, `touch-md`, `touch-lg`, `18/22/26/30`)
-  - radius tokens (`radius-card`, `radius-pill`, `radius-button`)
-  - shadow tokens (`card`, `glass`, `elevated`)
+#### Client-side state and transitions
 
-### 7.3 Typography
-- Font loading in `src/app/layout.tsx:2,9-25`: `Inter`, `Nunito`, `Baloo_2` via `next/font/google`.
-- Tailwind font family mapping in `tailwind.config.ts` (`fontFamily.sans`, `fontFamily.display`).
-- Atkinson Hyperlegible: `not found`.
+- `ChildDayViewLive` local state: task list, pending id, pause state, focus overlay (`src/components/child/my-day/child-day-view-live.tsx:296-301`)
+- `ChildDayTimelineView` local state: task list, selected item, pending id, focus overlay (`.../child-day-timeline-view.tsx:236-239`)
+- Task transition action: `updateTaskStatusAction` (`src/lib/actions/tasks.ts:36`), with transition validation + points logic + `task_instances` and `daily_points` update.
+#### Fallback mode (non-Supabase)
 
-### 7.4 Icon library
-- Custom SVG icon set: `src/components/child/icons/child-premium-icons.tsx`.
-- Used by home card, timeline cards, and child bottom nav.
-- No external icon package usage found.
+- Gated by env helper `isSupabaseEnabled()` (`src/lib/supabase/env.ts:17-18`)
+- Fallback stores:
+  - templates/blocks/categories: `src/lib/demo/day-templates-store.ts`
+  - task instances/daily points/reward tiers: `src/lib/demo/gamification-store.ts`
+- Persistence in `.tmp/*.json` in non-test runtime: store constants in both demo store files.
 
-## 8) Testing and quality gates inventory
+### 4.2 Required type inventory (timeline/tasks/rewards)
 
-### 8.1 Frameworks/config
-- Unit/integration: Vitest + Testing Library (`vitest.config.ts`, `vitest.setup.ts`).
-- E2E: Playwright (`playwright.config.ts`, tests in `e2e`).
-- Storybook: `@storybook/react-vite` with Next mocks (`.storybook/main.ts`, `.storybook/preview.tsx`).
-- Jest: `not found`.
-- Cypress: `not found`.
-- CI workflows in `.github/workflows`: `not found`.
+| Type | Path |
+|---|---|
+| `TaskInstanceSummary` | `src/lib/day-templates/types.ts:121` |
+| `DayTimelineItemSummary` | `src/lib/day-templates/types.ts:188` |
+| `TodayTimelineData` | `src/lib/day-templates/types.ts:178` |
+| `TodayTimelineV2Data` | `src/lib/day-templates/types.ts:240` |
+| `RewardTierSummary` | `src/lib/day-templates/types.ts:156` |
+| `DailyPointsSummary` | `src/lib/day-templates/types.ts:165` |
+| `DayBalanceSummary` | `src/lib/day-templates/types.ts:220` |
 
-### 8.2 Existing tests related to child home / my-day / timeline
-Unit/integration:
+### 4.3 Rewards/points/progress computation locations
+
+- Per-task transition points: `computePointsForTransition` (`src/lib/domain/points.ts:9-22`)
+- Status transition rules: `canTransitionTaskStatus` (`src/lib/domain/task-status.ts:11-30`)
+- Daily points update in action: `src/lib/actions/tasks.ts` (reads/writes `daily_points` + updates `task_instances`)
+- Day-balance summary from timeline items: `computeDayBalanceFromTimelineItems` (`src/lib/day-templates/balance.ts:70`)
+- Next reward target logic in UI: `computePointsTarget` inside `ChildDayViewLive` (`src/components/child/my-day/child-day-view-live.tsx:118-130`)
+
+`stars` as separate persisted currency was not found; point model is based on `points_base`, `points_earned`, and `daily_points.points_total`.
+
+## 5) Design System Inventory
+
+### 5.1 DS implementation model
+
+Not using an external UI kit like shadcn package; this repo has a custom DS layer in `src/components/ds/*`, with CVA variants and Tailwind.
+
+Evidence:
+- DS exports: `src/components/ds/index.ts`
+- variants with `class-variance-authority`: `src/components/ds/button.tsx:4-35`, `src/components/ds/badge.tsx:2-26`
+
+### 5.2 Token sources (exact files)
+
+| Token source | Path | Evidence |
+|---|---|---|
+| CSS variables (colors, radius, shadows, space, typography vars) | `src/app/globals.css` | root token blocks from `:31+` and dark overrides from `:140+` |
+| Tailwind semantic token mapping | `tailwind.config.ts` | extended `colors`, `spacing`, `borderRadius`, `boxShadow`, `fontFamily`, `backgroundImage` (`:25,100,109,117,123,128`) |
+
+### 5.3 Typography and fonts
+
+- Fonts loaded via Next font API in root layout:
+  - `Lexend` as UI font variable `--font-lexend`
+  - `Atkinson_Hyperlegible` as reading font variable `--font-atkinson`
+- Evidence: `src/app/layout.tsx:2,9-18`
+- Tailwind mapping to families: `tailwind.config.ts:123-127`
+- `.reading` utility uses reading font: `src/app/globals.css` (class declaration)
+
+### 5.4 Icon system
+
+- External icon package usage not found (`lucide`, `heroicons`, `react-icons` search returned none).
+- Custom icon set in `src/components/child/icons/child-premium-icons.tsx`.
+- Category icon resolver maps domain keys to custom icons in `src/components/ds/category-icons.tsx:22-50`.
+
+### 5.5 Core DS components used by target screens
+
+| UI concern | Component(s) | Path |
+|---|---|---|
+| Buttons | `Button` | `src/components/ds/button.tsx` |
+| Cards | `Card`, `CardContent` | `src/components/ds/card.tsx` |
+| Badges | `Badge` | `src/components/ds/badge.tsx` |
+| Modal | `Modal` | `src/components/ds/modal.tsx` |
+| Skeleton | `Skeleton` | `src/components/ds/skeleton.tsx` |
+| Bottom navigation | `TabBar` | `src/components/ds/tab-bar.tsx` |
+| Category icons | `CategoryIcon`, `resolveCategoryIcon` | `src/components/ds/category-icons.tsx` |
+
+### 5.6 Existing styling conventions observed
+
+- Touch target sizes in Tailwind spacing extension: `touch-sm/md/lg` (`tailwind.config.ts:100-104`)
+- Button variants (`primary`, `secondary`, `tertiary`, `ghost`, `danger`, `link`) in `button.tsx:12-21`
+- Radius naming (`radius-card`, `radius-pill`, `radius-button`) in `tailwind.config.ts:109-114`
+- Semantic color tokens consumed as `bg-*`, `text-*`, `status-*`, `category-*`.
+
+## 6) Testing and Quality Gates Inventory
+
+### 6.1 Frameworks and config
+
+| Type | Tool | Config |
+|---|---|---|
+| Unit/component tests | Vitest + Testing Library | `vitest.config.ts`, `vitest.setup.ts` |
+| E2E tests | Playwright | `playwright.config.ts` |
+| Storybook visual/dev | Storybook 8 + Vite | `.storybook/main.ts`, `.storybook/preview.tsx` |
+| Lint | ESLint | `eslint.config.mjs` |
+| Format | Prettier | `.prettierrc.json` |
+| Typecheck | TypeScript compiler | `tsconfig.json` + `npm run typecheck` |
+
+CI workflows:
+- `.github/workflows` not found.
+
+### 6.2 Existing tests related to Ma journee / Timeline
+
+Runtime my-day/timeline tests:
 - `src/__tests__/child/my-day/child-day-view-live.test.tsx`
+- `src/__tests__/child/my-day/child-day-timeline-view.test.tsx`
+- `src/__tests__/child/my-day/focus-view-overlay.test.tsx`
+
+Legacy timeline suite tests:
 - `src/__tests__/timeline/day-timeline.test.tsx`
 - `src/__tests__/timeline/next-up-banner.test.tsx`
 - `src/__tests__/timeline/now-cursor.test.tsx`
 - `src/__tests__/timeline/timeline-task-card.test.tsx`
-- `src/__tests__/child-home/en-ce-moment-card.test.tsx`
-- `src/__tests__/child-home/page.test.tsx`
-- `src/__tests__/child-home/header-components.test.tsx`
+- `src/__tests__/timeline-helpers.test.ts`
 
 E2E:
-- `e2e/child-home.spec.ts`
 - `e2e/child-my-day.spec.ts`
-- `e2e/visual-qa-complete.spec.ts`
-- Related flows touching `/child/my-day`: `e2e/child-gamification.spec.ts`, `e2e/cinema.spec.ts`, `e2e/knowledge-and-achievements.spec.ts`, `e2e/assignation-and-dashboard.spec.ts`, `e2e/parent-rewards.spec.ts`
+- `e2e/child-home.spec.ts`
 
-### 8.3 Local quality commands
+### 6.3 Commands to run locally
+
 - Typecheck: `npm run typecheck`
 - Lint: `npm run lint`
 - Unit tests: `npm run test`
 - E2E tests: `npm run test:e2e`
-- Build: `npm run build`
-- Dev: `npm run dev`
 
+Tests were not executed during this snapshot (per request).
 
-## 9) Known constraints and refactor risks (evidence-based)
+## 7) Known Constraints, Risks, and Legacy/Duplicate Areas (evidence-based)
 
-### 9.1 Tight coupling areas
-- `ChildDayViewLive` combines orchestration + optimistic updates + guided mode + timeline mode + focus navigation in one file (`src/components/child/my-day/child-day-view-live.tsx`).
-- `DayTimeline` includes rendering, detail panel actions, now-banner logic, and autoscroll behavior in one component (`src/components/timeline/day-timeline.tsx`).
-- Data coupling chain for my-day is cross-layer:
-  - DB tables/migrations (`supabase/migrations/...`)
-  - API mappers (`src/lib/api/day-view.ts`)
-  - page props (`src/app/(child)/child/my-day/page.tsx`)
-  - client rendering (`src/components/child/my-day/child-day-view-live.tsx`)
+### 7.1 Tight coupling areas
 
-### 9.2 Pitfalls for refactoring Ma journee / Timeline
-- Timeline View is mode state, not a route. Refactors that split routes can break mobile behavior (`mobileViewMode` in `child-day-view-live.tsx:851-894`).
-- Dual-path logic exists for day-plan v2 feature flag (`src/lib/api/day-view.ts:240-264`; `src/components/child/my-day/child-day-view-live.tsx:643-680`).
-- Supabase and demo fallback paths must both stay consistent (`src/lib/api/day-view.ts:286-352` and `:354+`).
-- Status transitions are constrained and validated at DB + domain + action layers (migration constraint + `task-status.ts` + `actions/tasks.ts`).
+1. `my-day` pages are tightly coupled to one aggregator payload shape.
+   Evidence:
+   - `src/app/(child)/child/my-day/page.tsx` and `src/app/(child)/child/my-day/timeline/page.tsx` both consume `getTodayTemplateWithTasksForProfileV2(...)`.
+   - Both route files pass many strongly-shaped props directly into UI components.
+   - Contract types are centralized in `src/lib/day-templates/types.ts` (`TodayTimelineV2Data`, `DayTimelineItemSummary`, `DayBalanceSummary`).
 
-### 9.3 Likely legacy/duplicate implementations (targeted domain)
-- `src/lib/hooks/useTaskInstanceStatus.ts`: no import usages found; overlaps with inline status-update logic in `ChildDayViewLive`.
-- Two timeline helper paradigms coexist:
-  - `src/lib/day-templates/timeline.ts` (task-only current/next)
-  - `src/lib/day-templates/plan-items.ts` (v2 unified timeline/context/actions)
-- Legacy route alias: `src/app/(parent)/parent/gamification/page.tsx` redirects to `/parent/rewards`.
-- Label drift between docs and code CTA:
-  - docs mention `Continuer ma journee`
-  - code uses `Voir ma journee` in `src/components/child/home/child-home-now-card.tsx:262`
+2. UI behavior depends on feature-flag branching in multiple layers.
+   Evidence:
+   - Flag source: `src/config/feature-flags.ts:11`.
+   - Branches in API layer: `src/lib/api/day-view.ts:300`.
+   - Branches in both screen components: `src/components/child/my-day/child-day-view-live.tsx:332-348`, `src/components/child/my-day/child-day-timeline-view.tsx:250-258`.
 
-## 10) Read-only command log and key outputs
+3. Task lifecycle is coupled across SQL, generated DB types, domain rules, and server action writes.
+   Evidence:
+   - SQL status check: `supabase/migrations/20260211130000_gamification_points_timers.sql`.
+   - Generated status union: `src/types/database.ts` (`task_instances.status`).
+   - Transition gate: `src/lib/domain/task-status.ts`.
+   - Writes and points updates: `src/lib/actions/tasks.ts` (`task_instances` + `daily_points`).
 
-Commands executed were read-only (`Get-Content`, `Get-ChildItem`, `rg`, `Test-Path`, custom PowerShell tree printers). No tests were run.
+4. Navigation behavior depends on hardcoded path strings in multiple components.
+   Evidence:
+   - Programmatic route transitions: `src/components/child/my-day/child-day-view-live.tsx:449`, `src/components/child/my-day/child-day-timeline-view.tsx:433,456,616`.
+   - Bottom nav matching is path-prefix based: `src/components/layout/child-shell.tsx` (`matchPrefixes` includes `/child/my-day` and `/child/focus`).
 
-Main command groups and outcomes:
-1. Root/config presence scans: confirmed config files and lockfiles; confirmed missing files (`src/pages`, `pages`, Jest/Cypress configs, `.github/workflows`, `.env.example`).
-2. File content reads: loaded all cited config, route, component, API/action/domain, and migration files.
-3. Depth-limited tree generation: produced full trees (depth <= 4) for requested directories.
-4. Route derivation: generated URL-to-`page.tsx` mapping from `src/app`.
-5. String scans: executed required term searches (`Ma journée`, `Timeline`, `Maintenant`, `Ensuite`, `Plus tard`, `Je continue`, `Voir ma journée`).
-6. Import usage tracing: mapped where key components are imported.
-7. Test inventory scans: listed relevant unit and e2e files.
-8. Supabase schema scans: identified day/timeline/points/reward tables and constraints from migrations.
+### 7.2 Refactor pitfalls for Ma journee / Timeline
 
-Retry note:
-- Early `rg` commands using Windows glob syntax (example: `docs/*.md`) returned path syntax errors and were rerun successfully using directory targets.
+1. Changing payload fields from `getTodayTemplateWithTasksForProfileV2` risks breakage in both screens at once.
+2. Removing or renaming `v2Enabled` logic requires synchronized edits in API + both screen components.
+3. Route changes (`/child/my-day`, `/child/my-day/timeline`) require updates in push calls and in `ChildShell` tab matching.
+4. Status or points rule changes require coordinated migration/type/domain/action updates to avoid runtime mismatch.
+5. Demo fallback path (`src/lib/demo/*`) can diverge from Supabase path and cause environment-specific behavior differences.
 
-### 10.1 Exact command strings used (representative full list)
-The following read-only command strings were executed during this snapshot (some repeated with different targets):
+### 7.3 Likely legacy or duplicate implementations (target domain)
 
-1. `Get-Location; Get-ChildItem -Force`
-2. `foreach ($f in ...) { \"$f`t$(Test-Path $f)\" }`
-3. `Get-Content package.json`
-4. `Get-Content tsconfig.json`
-5. `Get-Content next.config.ts`
-6. `Get-Content tailwind.config.ts`
-7. `Get-Content postcss.config.mjs`
-8. `Get-Content eslint.config.mjs`
-9. `Get-Content .prettierrc.json`
-10. `Get-Content .prettierignore`
-11. `Get-Content vitest.config.ts`
-12. `Get-Content vitest.setup.ts`
-13. `Get-Content playwright.config.ts`
-14. Custom recursive PowerShell tree printer for targets (`app`, `src/app`, `pages`, `src/pages`, `components`, `src/components`, `lib`, `src/lib`, `styles`, `src/styles`, `tests`, `src/__tests__`, `__tests__`, `docs`) with max depth 4
-15. `rg -n --hidden -S \"Ma journée|Timeline|Maintenant|Ensuite|Plus tard|Je continue|Voir ma journée\" src docs e2e`
-16. `rg -n --hidden -S \"my-day|timeline|day-view|day timeline|journee|journée\" src e2e docs`
-17. `Get-Content src/app/(child)/child/page.tsx`
-18. `Get-Content src/app/(child)/child/my-day/page.tsx`
-19. `Get-Content src/components/child/my-day/child-day-view-live.tsx`
-20. `Get-Content src/components/layout/child-shell.tsx`
-21. `Get-Content src/components/child/home/child-home-now-card.tsx`
-22. `Get-Content src/components/timeline/day-timeline.tsx`
-23. `Get-Content src/components/timeline/timeline-task-card.tsx`
-24. `Get-Content src/components/timeline/next-up-banner.tsx`
-25. `Get-Content src/components/timeline/now-cursor.tsx`
-26. `Get-Content src/components/timeline/time-axis.tsx`
-27. `Get-Content src/components/timeline/daily-progress-bar.tsx`
-28. `Get-Content src/app/layout.tsx`
-29. `Get-Content src/app/globals.css`
-30. `Get-Content src/components/ds/index.ts`
-31. `Get-Content src/components/ds/button.tsx`
-32. `Get-Content src/components/ds/card.tsx`
-33. `Get-Content src/components/ds/tab-bar.tsx`
-34. `Get-Content src/lib/api/day-view.ts`
-35. `Get-Content src/lib/day-templates/types.ts`
-36. `Get-Content src/lib/actions/tasks.ts`
-37. `Get-Content src/lib/domain/points.ts`
-38. `Get-Content src/lib/day-templates/plan-items.ts`
-39. `Get-Content src/lib/day-templates/timeline.ts`
-40. `Get-Content src/lib/day-templates/balance.ts`
-41. `Get-Content src/lib/domain/task-status.ts`
-42. `Get-Content src/lib/api/child-home.ts`
-43. `Get-Content src/lib/supabase/env.ts`
-44. `Get-Content src/lib/supabase/client.ts`
-45. `Get-Content src/lib/supabase/server.ts`
-46. `Get-Content src/lib/supabase/admin.ts`
-47. `Get-Content src/lib/supabase/middleware.ts`
-48. `Get-Content src/lib/supabase/route.ts`
-49. `Get-Content supabase/config.toml`
-50. `Get-Content supabase/seed.sql | Select-Object -First ...`
-51. `rg -n \"create table|alter table|task_instances|template_tasks|day_templates|day_template_blocks|reward_tiers|daily_points|plan_items|status\" supabase/migrations`
-52. `Get-Content supabase/migrations/...sql` (key migrations for timeline/points/v2)
-53. `Get-ChildItem .github/workflows` (result: not found)
-54. `Get-Content .storybook/main.ts`
-55. `Get-Content .storybook/preview.tsx`
-56. `Get-Content middleware.ts`
-57. `Get-ChildItem -Recurse -Filter page.tsx src/app` + derived route mapping script
-58. `rg --files src/__tests__ | rg \"child-home|child\\\\my-day|timeline|day-view\"`
-59. `rg --files e2e | rg \"child-home|child-my-day|timeline|visual-qa|...\"`
-60. `Get-Content e2e/child-home.spec.ts`
-61. `Get-Content e2e/child-my-day.spec.ts`
-62. `Get-Content src/__tests__/child/my-day/child-day-view-live.test.tsx`
-63. `Get-Content src/__tests__/timeline/day-timeline.test.tsx`
-64. `Get-Content src/__tests__/child-home/en-ce-moment-card.test.tsx`
+The following paths appear as duplicates or legacy candidates relative to the current runtime my-day/timeline route chain:
 
-Observed outputs from these commands are reflected in the sections above (file existence, tree output, route mapping, config keys, string hits, and component/data/test inventory).
+- `src/components/timeline/*`
+  - Legacy timeline suite (`day-timeline`, `timeline-task-card`, `now-cursor`, `next-up-banner`) appears in stories/tests but is not imported by `src/app/(child)/child/my-day/*`.
+- `src/components/child/home/child-home-now-card.tsx`
+  - Contains timeline-related CTA/copy (`Voir ma journee`) but is not imported by current runtime page/component chain (`src/app/(child)/child/page.tsx` -> `src/components/child/child-home-live.tsx`).
+- `src/components/child/today/time-grid-timeline.tsx`
+  - Exported via `src/components/child/today/index.ts` but no runtime imports were found under current app routes.
 
-## 11) Explicit not-found list
-- `app/` (root-level): not found
-- `pages/` and `src/pages/`: not found
-- `components/` and `lib/` at root: not found
-- `styles/` and `src/styles/`: not found
-- root `tests/` and `__tests__/`: not found
-- `.env.example`: not found
-- Jest config: not found
-- Cypress config: not found
-- `.github/workflows`: not found
-- string `Je continue`: not found
-- string `Voir ma journée` (accented): not found
-- Atkinson Hyperlegible font usage: not found
+## 8) Read-only Command Log (executed for this snapshot)
+
+Commands below are safe read-only inspection commands used during this snapshot/update pass. Results are summarized exactly at a high level.
+
+1. `Get-Item docs/project-snapshot.md | Select-Object FullName,Length,LastWriteTime; git status --short`
+   Result:
+   - Confirmed report file exists with path/size/timestamp.
+   - Confirmed workspace is already dirty with many pre-existing changes.
+
+2. `Get-Content -Path docs/project-snapshot.md -TotalCount 300`
+   Result:
+   - Confirmed sections 1-6 content is present.
+
+3. `rg -n "^## " docs/project-snapshot.md`
+   Result:
+   - Confirmed only sections 1-6 existed before this completion pass.
+
+4. `rg -n "^### " docs/project-snapshot.md`
+   Result:
+   - Confirmed detailed subsection coverage and identified missing section 7+.
+
+5. `Get-Content docs/project-snapshot.md -Tail 140`
+   Result:
+   - Confirmed file ended at section 6.3 before completion.
+
+6. `rg -n "DAY_PLAN_V2|NEXT_PUBLIC_DAY_PLAN_V2|v2Enabled" src/config src/app src/components src/lib`
+   Result:
+   - Found flag source and branching usage across API/routes/components.
+
+7. `rg -n "/child/my-day" src/components/child/my-day`
+   Result:
+   - Found route transition push calls between simplified and timeline views.
+
+8. `rg -n "task_instances|daily_points|reward_tiers|template_tasks|day_template_blocks" src/lib/api/day-view.ts src/lib/actions/tasks.ts`
+   Result:
+   - Confirmed DB table write/read touchpoints for timeline and points data.
+
+9. `rg -n '@/components/timeline|components/timeline' src`
+   Result:
+   - Confirmed legacy timeline suite is referenced in tests/stories and internal suite files.
+
+10. `rg -n "ChildHomeNowCard" src`
+    Result:
+    - Confirmed usage in tests + barrel export; no runtime app-route imports found.
+
+11. `rg -n "TimeGridTimeline" src`
+    Result:
+    - Confirmed component file + export only.
+
+12. `Get-Content 'src/app/(child)/child/page.tsx' -TotalCount 220`
+    Result:
+    - Confirmed child home route uses `ChildHomeLive`.
+
+13. `Get-Content 'src/components/child/child-home-live.tsx' -TotalCount 260`
+    Result:
+    - Confirmed home screen composition and absence of direct `ChildHomeNowCard` usage.
+
+14. `Get-Content 'src/components/layout/child-shell.tsx' -TotalCount 260`
+    Result:
+    - Confirmed bottom tab configuration and path-prefix coupling.
+
+15. `Get-ChildItem 'src/app/(child)/child/my-day/timeline' | Select-Object Name`
+    Result:
+    - Confirmed `loading.tsx` and `page.tsx` exist.
+
+16. `Get-Content 'src/app/(child)/child/my-day/timeline/loading.tsx' -TotalCount 40`
+    Result:
+    - Confirmed loading route renders `<ChildDayTimelineView isLoading />`.
+
+17. `Get-Content 'src/app/(child)/child/my-day/timeline/page.tsx' -TotalCount 140`
+    Result:
+    - Confirmed route payload wiring and component props for timeline view.
 

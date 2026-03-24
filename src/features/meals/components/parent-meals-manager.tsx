@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
   Input,
   Select,
 } from "@/components/ds";
@@ -23,6 +24,7 @@ import {
 import { shiftWeekStartKey } from "@/lib/domain/dashboard";
 import { getMealRatingEmoji, getMealTypeLabel } from "@/lib/domain/meals";
 import { useFormField } from "@/lib/hooks/useFormField";
+import { useParentFeedback } from "@/lib/hooks/useParentFeedback";
 import type {
   IngredientInput,
   IngredientSummary,
@@ -131,7 +133,8 @@ export function ParentMealsManager({
 }: ParentMealsManagerProps): React.JSX.Element {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const { feedback, showFeedback, clearFeedback } = useParentFeedback();
+  const [mealToDelete, setMealToDelete] = useState<MealWithRatingSummary | null>(null);
   const [selectedDate, setSelectedDate] = useState(weekDateKeys[0] ?? weekStart);
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [ingredientFormOpen, setIngredientFormOpen] = useState(false);
@@ -202,18 +205,18 @@ export function ParentMealsManager({
     setSelectedDate(meal.date);
     descriptionField.reset(meal.description);
     dateField.reset(meal.date);
-    setFeedback(null);
+    clearFeedback();
   }
 
   function submitMeal(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    setFeedback(null);
+    clearFeedback();
     descriptionField.markTouched();
     dateField.markTouched();
     const descriptionError = descriptionField.validateNow();
     const dateError = dateField.validateNow();
     if (descriptionError || dateError) {
-      setFeedback({ tone: "error", message: "Veuillez corriger les champs requis." });
+      showFeedback({ tone: "error", message: "Veuillez corriger les champs requis." });
       return;
     }
 
@@ -230,11 +233,11 @@ export function ParentMealsManager({
         ? await updateMealAction(editingMealId, payload)
         : await createMealAction(payload);
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer ce repas." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer ce repas." });
         return;
       }
 
-      setFeedback({
+      showFeedback({
         tone: "success",
         message: editingMealId ? "Repas modifie." : "Repas ajoute.",
       });
@@ -244,22 +247,37 @@ export function ParentMealsManager({
     });
   }
 
-  function removeMeal(mealId: string): void {
-    const confirmed = window.confirm("Supprimer ce repas ?");
-    if (!confirmed) {
+  function requestDeleteMeal(meal: MealWithRatingSummary): void {
+    if (isPending) {
       return;
     }
-    setFeedback(null);
+    setMealToDelete(meal);
+  }
+
+  function cancelDeleteMeal(): void {
+    if (isPending) {
+      return;
+    }
+    setMealToDelete(null);
+  }
+
+  function confirmDeleteMeal(): void {
+    if (!mealToDelete) {
+      return;
+    }
+
+    clearFeedback();
     startTransition(async () => {
-      const result = await deleteMealAction(mealId);
+      const result = await deleteMealAction(mealToDelete.id);
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer ce repas." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible de supprimer ce repas." });
         return;
       }
-      if (editingMealId === mealId) {
+      if (editingMealId === mealToDelete.id) {
         resetForm();
       }
-      setFeedback({ tone: "success", message: "Repas supprime." });
+      showFeedback({ tone: "success", message: "Repas supprime." });
+      setMealToDelete(null);
       router.refresh();
     });
   }
@@ -314,10 +332,10 @@ export function ParentMealsManager({
 
   function addIngredientToCatalog(): void {
     if (!ingredientDraft.label.trim()) {
-      setFeedback({ tone: "error", message: "Le nom de l'ingredient est requis." });
+      showFeedback({ tone: "error", message: "Le nom de l'ingredient est requis." });
       return;
     }
-    setFeedback(null);
+    clearFeedback();
     startTransition(async () => {
       const result = await createIngredientAction({
         label: ingredientDraft.label.trim(),
@@ -325,10 +343,10 @@ export function ParentMealsManager({
         defaultUnit: ingredientDraft.defaultUnit?.trim() ? ingredientDraft.defaultUnit.trim() : null,
       });
       if (!result.success) {
-        setFeedback({ tone: "error", message: result.error ?? "Impossible d'ajouter l'ingredient." });
+        showFeedback({ tone: "error", message: result.error ?? "Impossible d'ajouter l'ingredient." });
         return;
       }
-      setFeedback({ tone: "success", message: "Ingredient ajoute a la base." });
+      showFeedback({ tone: "success", message: "Ingredient ajoute a la base." });
       setIngredientDraft({ label: "", emoji: "🥕", defaultUnit: null });
       router.refresh();
     });
@@ -336,17 +354,17 @@ export function ParentMealsManager({
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card surface="child">
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>Semaine des repas de {childName}</CardTitle>
             <CardDescription>Planification, suivi des avis et favoris.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => router.push(`/parent/meals?weekStart=${shiftWeekStartKey(weekStart, -1)}`)}>
+            <Button variant="glass" onClick={() => router.push(`/parent/meals?weekStart=${shiftWeekStartKey(weekStart, -1)}`)}>
               Semaine precedente
             </Button>
-            <Button variant="secondary" onClick={() => router.push(`/parent/meals?weekStart=${shiftWeekStartKey(weekStart, 1)}`)}>
+            <Button variant="glass" onClick={() => router.push(`/parent/meals?weekStart=${shiftWeekStartKey(weekStart, 1)}`)}>
               Semaine suivante
             </Button>
           </div>
@@ -367,7 +385,7 @@ export function ParentMealsManager({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>Semaine</CardTitle>
         </CardHeader>
@@ -403,7 +421,7 @@ export function ParentMealsManager({
       {feedback ? <ParentFeedbackBanner tone={feedback.tone} message={feedback.message} /> : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card>
+        <Card surface="glass">
           <CardHeader>
             <CardTitle>Repas du {formatDateLabel(selectedDate)}</CardTitle>
           </CardHeader>
@@ -439,10 +457,10 @@ export function ParentMealsManager({
                       ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => startEditMeal(meal)}>
+                      <Button size="sm" variant="glass" onClick={() => startEditMeal(meal)}>
                         Modifier
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={isPending} onClick={() => removeMeal(meal.id)}>
+                      <Button size="sm" variant="danger" disabled={isPending} onClick={() => requestDeleteMeal(meal)}>
                         Supprimer
                       </Button>
                     </div>
@@ -453,7 +471,7 @@ export function ParentMealsManager({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card surface="glass">
           <CardHeader>
             <CardTitle>{editingMealId ? "Modifier un repas" : "Ajouter un repas"}</CardTitle>
             <CardDescription>Formulaire parent principal.</CardDescription>
@@ -560,7 +578,7 @@ export function ParentMealsManager({
                   </Select>
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="glass"
                     onClick={() => applyRecipeIngredients(draft.recipeId)}
                     disabled={!draft.recipeId || isPending}
                   >
@@ -572,7 +590,7 @@ export function ParentMealsManager({
               <div className="space-y-2 rounded-radius-button border border-border-subtle bg-bg-surface-hover/40 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-text-primary">Ingredients du repas</p>
-                  <Button type="button" size="sm" variant="secondary" onClick={addIngredientRow}>
+                  <Button type="button" size="sm" variant="glass" onClick={addIngredientRow}>
                     Ajouter un ingredient
                   </Button>
                 </div>
@@ -610,7 +628,7 @@ export function ParentMealsManager({
                           }
                           placeholder="Unite"
                         />
-                        <Button type="button" variant="ghost" onClick={() => removeIngredientRow(line.rowId)}>
+                        <Button type="button" variant="glass" onClick={() => removeIngredientRow(line.rowId)}>
                           Retirer
                         </Button>
                       </div>
@@ -654,7 +672,7 @@ export function ParentMealsManager({
                         }
                         placeholder="Unite"
                       />
-                      <Button type="button" variant="secondary" onClick={addIngredientToCatalog} disabled={isPending}>
+                      <Button type="button" variant="glass" onClick={addIngredientToCatalog} disabled={isPending}>
                         Ajouter
                       </Button>
                     </div>
@@ -663,11 +681,11 @@ export function ParentMealsManager({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" loading={isPending}>
+                <Button type="submit" variant="premium" loading={isPending}>
                   {editingMealId ? "Enregistrer" : "Ajouter"}
                 </Button>
                 {editingMealId ? (
-                  <Button type="button" variant="ghost" onClick={() => resetForm()}>
+                  <Button type="button" variant="glass" onClick={() => resetForm()}>
                     Annuler
                   </Button>
                 ) : null}
@@ -677,7 +695,7 @@ export function ParentMealsManager({
         </Card>
       </div>
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>Liste d&apos;ingredients de la semaine</CardTitle>
         </CardHeader>
@@ -713,7 +731,7 @@ export function ParentMealsManager({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card surface="glass">
         <CardHeader>
           <CardTitle>Recettes disponibles</CardTitle>
         </CardHeader>
@@ -729,6 +747,22 @@ export function ParentMealsManager({
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={mealToDelete !== null}
+        title="Supprimer ce repas ?"
+        {...(mealToDelete
+          ? {
+              description: `Le repas "${mealToDelete.description}" sera supprime.`,
+            }
+          : {})}
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        confirmVariant="danger"
+        loading={isPending}
+        onCancel={cancelDeleteMeal}
+        onConfirm={confirmDeleteMeal}
+      />
     </div>
   );
 }

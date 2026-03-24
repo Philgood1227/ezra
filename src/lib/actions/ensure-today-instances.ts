@@ -5,6 +5,16 @@ import type { Database } from "@/types/database";
 
 type TemplateRow = Database["public"]["Tables"]["day_templates"]["Row"];
 type TemplateTaskRow = Database["public"]["Tables"]["template_tasks"]["Row"];
+type TaskCategoryRow = Database["public"]["Tables"]["task_categories"]["Row"];
+
+const SCHOOL_CATEGORY_CODES = new Set(["homework", "revision", "training"]);
+
+function isPleasureTaskSubkind(value: string | null | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  return value.includes("ui:") && value.includes("sub:");
+}
 
 export interface EnsureTodayInstancesInput {
   supabase: SupabaseClient<Database>;
@@ -52,7 +62,27 @@ export async function ensureTodayTaskInstances({
   }
 
   const taskRows = templateTasks as TemplateTaskRow[];
-  const templateTaskIds = taskRows.map((task) => task.id);
+  const categoryIds = [...new Set(taskRows.map((task) => task.category_id))];
+  const { data: categoryRows } = categoryIds.length
+    ? await supabase.from("task_categories").select("id, code").in("id", categoryIds)
+    : { data: [] as Pick<TaskCategoryRow, "id" | "code">[] };
+  const categoryCodeById = new Map((categoryRows ?? []).map((row) => [row.id, row.code]));
+
+  const eligibleTaskRows = taskRows.filter((task) => {
+    const categoryCode = categoryCodeById.get(task.category_id) ?? null;
+    const isSchoolMission = Boolean(categoryCode && SCHOOL_CATEGORY_CODES.has(categoryCode));
+    const isPleasureTask = isPleasureTaskSubkind(task.item_subkind);
+    if (isSchoolMission || isPleasureTask) {
+      return task.scheduled_date === dateKey;
+    }
+
+    return !task.scheduled_date || task.scheduled_date === dateKey;
+  });
+
+  if (eligibleTaskRows.length === 0) {
+    return { template };
+  }
+  const templateTaskIds = eligibleTaskRows.map((task) => task.id);
 
   const { data: existingInstances, error: existingError } = await supabase
     .from("task_instances")
@@ -68,7 +98,7 @@ export async function ensureTodayTaskInstances({
 
   const existingIds = new Set((existingInstances ?? []).map((entry) => entry.template_task_id));
 
-  const missing = taskRows.filter((task) => !existingIds.has(task.id));
+  const missing = eligibleTaskRows.filter((task) => !existingIds.has(task.id));
   if (missing.length === 0) {
     return { template };
   }

@@ -51,8 +51,8 @@ describe("points domain", () => {
   it("controle les transitions de statut autorisees", () => {
     expect(canTransitionTaskStatus("a_faire", "en_cours")).toBe(true);
     expect(canTransitionTaskStatus("a_faire", "termine")).toBe(true);
+    expect(canTransitionTaskStatus("en_cours", "a_faire")).toBe(true);
     expect(canTransitionTaskStatus("en_cours", "termine")).toBe(true);
     expect(canTransitionTaskStatus("termine", "en_cours")).toBe(false);
   });
 });
-

@@ -24,7 +24,7 @@ function makeTask(input: Partial<TaskInstanceSummary> & { id: string; date: stri
       id: "category-1",
       familyId: "family-1",
       name: input.category?.name ?? "Ecole",
-      icon: "📚",
+      icon: "school",
       colorKey: "category-ecole",
     },
   };

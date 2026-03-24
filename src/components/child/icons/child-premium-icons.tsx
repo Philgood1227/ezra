@@ -1,17 +1,10 @@
 import { cn } from "@/lib/utils";
+import { parseCategoryColorKey } from "@/lib/day-templates/constants";
+import type { CategoryColorKey } from "@/lib/day-templates/types";
 
 export interface ChildIconProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
 }
-
-type ActivityColorKey =
-  | "category-routine"
-  | "category-ecole"
-  | "category-repas"
-  | "category-sport"
-  | "category-loisir"
-  | "category-calme"
-  | "category-sommeil";
 
 type ActivityVisual = {
   borderClass: string;
@@ -20,7 +13,7 @@ type ActivityVisual = {
   haloClass: string;
 };
 
-const ACTIVITY_VISUALS: Record<ActivityColorKey, ActivityVisual> = {
+const ACTIVITY_VISUALS: Record<CategoryColorKey, ActivityVisual> = {
   "category-routine": {
     borderClass: "border-category-routine/45",
     softClass: "bg-category-routine/16",
@@ -277,34 +270,6 @@ export function TreeIcon(props: ChildIconProps): React.JSX.Element {
   );
 }
 
-const ACTIVITY_ICON_MAP: Record<ActivityColorKey, (props: ChildIconProps) => React.JSX.Element> = {
-  "category-routine": RoutineIcon,
-  "category-ecole": SchoolIcon,
-  "category-repas": MealIcon,
-  "category-sport": SportIcon,
-  "category-loisir": LeisureIcon,
-  "category-calme": CalmIcon,
-  "category-sommeil": SleepIcon,
-};
-
-function isActivityColorKey(value: string): value is ActivityColorKey {
-  return value in ACTIVITY_ICON_MAP;
-}
-
-export function getActivityIconByColorKey(
-  colorKey: string | null | undefined,
-): (props: ChildIconProps) => React.JSX.Element {
-  if (colorKey && isActivityColorKey(colorKey)) {
-    return ACTIVITY_ICON_MAP[colorKey];
-  }
-
-  return RoutineIcon;
-}
-
 export function getActivityVisual(colorKey: string | null | undefined): ActivityVisual {
-  if (colorKey && isActivityColorKey(colorKey)) {
-    return ACTIVITY_VISUALS[colorKey];
-  }
-
-  return DEFAULT_ACTIVITY_VISUAL;
+  return ACTIVITY_VISUALS[parseCategoryColorKey(colorKey)] ?? DEFAULT_ACTIVITY_VISUAL;
 }

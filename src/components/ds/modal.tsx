@@ -12,7 +12,23 @@ export interface ModalProps {
   description?: string;
   closeLabel?: string;
   className?: string;
+  fullscreen?: boolean;
   children: React.ReactNode;
+}
+
+function CloseIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+      <path
+        d="M18 6 6 18m0-12 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
 }
 
 export function Modal({
@@ -22,6 +38,7 @@ export function Modal({
   description,
   closeLabel = "Fermer",
   className,
+  fullscreen = false,
   children,
 }: ModalProps): React.JSX.Element | null {
   const prefersReducedMotion = useReducedMotion();
@@ -73,7 +90,12 @@ export function Modal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
+          className={cn(
+            "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm",
+            fullscreen
+              ? "flex items-stretch justify-stretch p-0"
+              : "flex items-end justify-center p-4 sm:items-center",
+          )}
           onClick={onClose}
           {...overlayMotionProps}
         >
@@ -82,7 +104,9 @@ export function Modal({
             aria-modal="true"
             aria-label={title ?? "Fenetre modale"}
             className={cn(
-              "relative w-full max-w-lg rounded-radius-card border border-border-subtle bg-bg-surface/85 p-6 shadow-elevated backdrop-blur-md",
+              fullscreen
+                ? "relative h-dvh w-screen overflow-y-auto border-none bg-bg-surface p-6 shadow-none backdrop-blur-none"
+                : "relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-radius-card border border-border-subtle bg-bg-surface/85 p-6 shadow-elevated backdrop-blur-md",
               className,
             )}
             onClick={(event) => event.stopPropagation()}
@@ -94,12 +118,20 @@ export function Modal({
               onClick={onClose}
               className="absolute right-3 top-3 inline-flex h-touch-sm w-touch-sm items-center justify-center rounded-radius-pill text-text-secondary transition-colors duration-200 hover:bg-bg-surface-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
             >
-              <span aria-hidden="true">x</span>
+              <CloseIcon />
             </button>
 
-            {title ? <h2 className="pr-12 text-xl font-bold text-text-primary">{title}</h2> : null}
-            {description ? <p className="mt-1 pr-12 text-sm text-text-secondary">{description}</p> : null}
-            <div className={cn(title || description ? "mt-4" : "", "text-text-primary")}>{children}</div>
+            {title ? (
+              <h2 className="pr-12 text-lg font-semibold leading-none text-text-primary">
+                {title}
+              </h2>
+            ) : null}
+            {description ? (
+              <p className="mt-1 pr-12 text-sm text-text-secondary">{description}</p>
+            ) : null}
+            <div className={cn(title || description ? "mt-4" : "", "text-text-primary")}>
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       ) : null}

@@ -6,18 +6,22 @@ export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   successMessage?: string | undefined;
 }
 
-export function TextArea({
-  className,
-  errorMessage,
-  successMessage,
-  ...props
-}: TextAreaProps): React.JSX.Element {
+export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
+  {
+    className,
+    errorMessage,
+    successMessage,
+    ...props
+  }: TextAreaProps,
+  ref,
+): React.JSX.Element {
   const isInvalid = props["aria-invalid"] === true || props["aria-invalid"] === "true" || Boolean(errorMessage);
   const isSuccess = !isInvalid && Boolean(successMessage);
 
   return (
     <div className="space-y-1.5">
       <textarea
+        ref={ref}
         className={cn(
           "min-h-32 w-full rounded-radius-button border bg-bg-surface px-3 py-2.5 text-sm text-text-primary shadow-card outline-none transition-all duration-200 placeholder:text-text-muted focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-bg-surface-hover disabled:text-text-muted",
           isInvalid
@@ -40,4 +44,4 @@ export function TextArea({
       ) : null}
     </div>
   );
-}
+});

@@ -45,14 +45,14 @@ describe("En ce moment card", () => {
         nowState="active_task"
         currentTask={{
           title: "Naruto",
-          icon: "\uD83C\uDFA8",
+          iconKey: "leisure",
           colorKey: "category-ecole",
           startTime: "16:00",
           endTime: "17:00",
         }}
         nextTask={{
           title: "Devoir de Maths",
-          icon: "\uD83D\uDCDA",
+          iconKey: "homework",
           colorKey: "category-repas",
           startTime: "17:00",
           endTime: "17:30",
@@ -89,7 +89,7 @@ describe("En ce moment card", () => {
         nowState="active_task"
         currentTask={{
           title: "Naruto",
-          icon: "\uD83C\uDFA8",
+          iconKey: "leisure",
           colorKey: "category-ecole",
           startTime: "16:00",
           endTime: "17:00",

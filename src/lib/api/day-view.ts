@@ -15,7 +15,8 @@ import {
   listDemoTemplates,
 } from "@/lib/demo/day-templates-store";
 import { computeDayBalanceFromTimelineItems } from "@/lib/day-templates/balance";
-import { getTodayDateKey } from "@/lib/day-templates/date";
+import { parseCategoryColorKey, parseCategoryIconKey, resolveCategoryCode } from "@/lib/day-templates/constants";
+import { getDateKeyFromDate } from "@/lib/day-templates/date";
 import {
   buildUnifiedTimelineItems,
   findCurrentActionItem,
@@ -24,7 +25,9 @@ import {
 } from "@/lib/day-templates/plan-items";
 import { buildDayContext } from "@/lib/day-templates/school-calendar";
 import { sortTemplateTasks } from "@/lib/day-templates/timeline";
-import { getCurrentMinutes, normalizeTimeLabel } from "@/lib/day-templates/time";
+import { getCurrentMinutes, normalizeTimeLabel, timeToMinutes } from "@/lib/day-templates/time";
+import { resolveTaskInstructionsHtml } from "@/lib/day-templates/instructions";
+import { getChildTimeBlockForTimeRange } from "@/lib/time/day-segments";
 import type {
   DayContextSummary,
   DayTemplateBlockSummary,
@@ -70,6 +73,9 @@ function mapTemplateBlock(row: DayTemplateBlockRow): DayTemplateBlockSummary {
     startTime: normalizeTimeLabel(row.start_time),
     endTime: normalizeTimeLabel(row.end_time),
     sortOrder: row.sort_order,
+    childTimeBlockId:
+      row.child_time_block_id ??
+      getChildTimeBlockForTimeRange(normalizeTimeLabel(row.start_time), normalizeTimeLabel(row.end_time)),
   };
 }
 
@@ -116,6 +122,22 @@ function mapDailyPoints(row: DailyPointsRow): DailyPointsSummary {
   };
 }
 
+function normalizeOptionalSubkind(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function isSchoolMissionCategoryCode(code: string | null | undefined): boolean {
+  return code === "homework" || code === "revision" || code === "training";
+}
+
+function isPleasureTaskSubkind(value: string | null | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  return value.includes("ui:") && value.includes("sub:");
+}
+
 function mapInstance(
   row: TaskInstanceRow,
   task: TemplateTaskRow | undefined,
@@ -127,20 +149,34 @@ function mapInstance(
     return null;
   }
 
+  const normalizedStartTime = normalizeTimeLabel(row.start_time);
+  const normalizedEndTime = normalizeTimeLabel(row.end_time);
+  const estimatedMinutes = Math.max(0, timeToMinutes(normalizedEndTime) - timeToMinutes(normalizedStartTime));
+  const helpLinks =
+    task.knowledge_card_id && knowledgeCardTitle
+      ? [
+          {
+            id: `knowledge-${task.knowledge_card_id}`,
+            label: knowledgeCardTitle,
+            href: `/child/knowledge?card=${task.knowledge_card_id}`,
+          },
+        ]
+      : [];
+
   return {
     id: row.id,
     familyId: row.family_id,
     childProfileId: row.child_profile_id,
     templateTaskId: row.template_task_id,
     itemKind: row.item_kind ?? task.item_kind ?? category.default_item_kind ?? "mission",
-    itemSubkind: row.item_subkind ?? task.item_subkind ?? null,
+    itemSubkind: normalizeOptionalSubkind(task.item_subkind),
     assignedProfileId: row.assigned_profile_id ?? task.assigned_profile_id,
     assignedProfileDisplayName: assignedProfile?.displayName ?? null,
     assignedProfileRole: assignedProfile?.role ?? null,
     date: row.date,
     status: row.status,
-    startTime: normalizeTimeLabel(row.start_time),
-    endTime: normalizeTimeLabel(row.end_time),
+    startTime: normalizedStartTime,
+    endTime: normalizedEndTime,
     pointsBase: row.points_base,
     pointsEarned: row.points_earned,
     title: task.title,
@@ -150,12 +186,28 @@ function mapInstance(
     knowledgeCardTitle,
     source: "template_task",
     sourceRefId: task.id,
+    recommendedChildTimeBlockId:
+      task.recommended_child_time_block_id ??
+      getChildTimeBlockForTimeRange(normalizedStartTime, normalizedEndTime),
+    instructionsHtml: resolveTaskInstructionsHtml({
+      instructionsHtml: task.instructions_html,
+      description: task.description,
+    }),
+    estimatedMinutes: estimatedMinutes > 0 ? estimatedMinutes : null,
+    helpLinks,
     category: {
       id: category.id,
       familyId: category.family_id,
+      code: resolveCategoryCode({
+        code: category.code,
+        name: category.name,
+        iconKey: category.icon,
+        colorKey: category.color_key,
+        defaultItemKind: category.default_item_kind,
+      }),
       name: category.name,
-      icon: category.icon,
-      colorKey: category.color_key,
+      icon: parseCategoryIconKey(category.icon),
+      colorKey: parseCategoryColorKey(category.color_key),
       defaultItemKind: category.default_item_kind,
     },
   };
@@ -188,11 +240,12 @@ function buildMovieTimelineInstance(input: {
     isReadOnly: true,
     source: "movie_session",
     sourceRefId: input.sessionId,
+    recommendedChildTimeBlockId: getChildTimeBlockForTimeRange("20:00", "22:00"),
     category: {
       id: "movie-category",
       familyId: input.familyId,
       name: "Cinema",
-      icon: "🎬",
+      icon: "leisure",
       colorKey: "category-loisir",
     },
   };
@@ -264,12 +317,18 @@ function toTimelineV2Data(
   };
 }
 
-export async function getTodayTemplateWithTasksForProfile(profileId: string): Promise<TodayTimelineData> {
+export async function getTodayTemplateWithTasksForProfile(
+  profileId: string,
+  options?: {
+    selectedDate?: Date;
+  },
+): Promise<TodayTimelineData> {
   const now = new Date();
-  const weekday = now.getDay();
-  const dateKey = getTodayDateKey();
+  const selectedDate = options?.selectedDate ?? now;
+  const weekday = selectedDate.getDay();
+  const dateKey = getDateKeyFromDate(selectedDate);
   const context = await getCurrentProfile();
-  const fallbackDayContext = getFallbackDayContext(now);
+  const fallbackDayContext = getFallbackDayContext(selectedDate);
 
   if (!profileId) {
     return {
@@ -299,9 +358,26 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
 
     const weekdayTemplates = listDemoTemplates(familyId).filter((template) => template.weekday === weekday);
     const template = weekdayTemplates.find((entry) => entry.isDefault) ?? weekdayTemplates[0] ?? null;
-    const templateTasks = template ? listDemoTemplateTasks(familyId, template.id) : [];
+    const templateTasks = template
+      ? listDemoTemplateTasks(familyId, template.id).filter(
+          (task) => {
+            const code = task.category.code ?? null;
+            const isPleasureTask = isPleasureTaskSubkind(task.itemSubkind);
+            if (isSchoolMissionCategoryCode(code)) {
+              return task.scheduledDate === dateKey;
+            }
+            if (isPleasureTask) {
+              return task.scheduledDate === dateKey;
+            }
+            return !task.scheduledDate || task.scheduledDate === dateKey;
+          },
+        )
+      : [];
     const templateBlocks = template ? listDemoTemplateBlocks(familyId, template.id) : [];
     const schoolPeriods = listDemoSchoolPeriods(familyId);
+    const templateSubkindByTaskId = new Map(
+      templateTasks.map((task) => [task.id, normalizeOptionalSubkind(task.itemSubkind)]),
+    );
 
     const instances = template
       ? ensureDemoTaskInstancesForDate({
@@ -313,7 +389,15 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
       : [];
 
     const categories = sortTemplateTasks(templateTasks).map((entry) => entry.category);
-    const persistedInstances = listDemoTaskInstances(familyId, profileId, dateKey, categories);
+    const persistedInstances = listDemoTaskInstances(familyId, profileId, dateKey, categories).filter((instance) => {
+      const code = instance.category.code ?? null;
+      const sourceTask = templateTasks.find((task) => task.id === instance.templateTaskId);
+      const isPleasureTask = isPleasureTaskSubkind(sourceTask?.itemSubkind);
+      if (!isSchoolMissionCategoryCode(code) && !isPleasureTask) {
+        return true;
+      }
+      return Boolean(sourceTask && sourceTask.scheduledDate === dateKey);
+    });
     const dailyPoints = getOrCreateDemoDailyPoints(familyId, profileId, dateKey);
     const rewardTiers = listDemoRewardTiers(familyId);
     const chosenMovie = await getChosenMovieForDate(dateKey);
@@ -333,9 +417,20 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
       : persistedInstances.length > 0
         ? persistedInstances
         : instances;
+    const normalizedInstances = mergedInstances.map((instance) => {
+      const templateSubkind = templateSubkindByTaskId.get(instance.templateTaskId);
+      if (templateSubkind === undefined || instance.itemSubkind === templateSubkind) {
+        return instance;
+      }
+
+      return {
+        ...instance,
+        itemSubkind: templateSubkind,
+      };
+    });
 
     const dayContext = buildDayContext({
-      date: now,
+      date: selectedDate,
       periods: schoolPeriods,
       dayBlocks: templateBlocks,
     });
@@ -343,7 +438,7 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
     return {
       weekday,
       template,
-      instances: mergedInstances,
+      instances: normalizedInstances,
       blocks: templateBlocks,
       dayContext,
       dailyPoints,
@@ -437,7 +532,7 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
   const templateBlocks = (blockRows ?? []).map((row) => mapTemplateBlock(row as DayTemplateBlockRow));
   const schoolPeriods = (schoolPeriodRows ?? []).map((row) => mapSchoolPeriodRow(row as SchoolPeriodRow));
   const dayContext = buildDayContext({
-    date: now,
+    date: selectedDate,
     periods: schoolPeriods,
     dayBlocks: templateBlocks,
   });
@@ -529,6 +624,13 @@ export async function getTodayTemplateWithTasksForProfile(profileId: string): Pr
     .map((row) => {
       const task = taskById.get(row.template_task_id);
       const category = task ? categoryById.get(task.category_id) : undefined;
+      if (task && category) {
+        const isSchoolMission = isSchoolMissionCategoryCode(category.code);
+        const isPleasureTask = isPleasureTaskSubkind(task.item_subkind);
+        if ((isSchoolMission || isPleasureTask) && task.scheduled_date !== dateKey) {
+          return null;
+        }
+      }
       const assignedProfile = assignedProfileById.get(
         row.assigned_profile_id ?? task?.assigned_profile_id ?? "",
       );
@@ -573,10 +675,14 @@ export async function getTodayTemplateWithTasksForProfileV2(
   profileId: string,
   options?: {
     enabled?: boolean;
+    selectedDate?: Date;
   },
 ): Promise<TodayTimelineV2Data> {
-  const baseData = await getTodayTemplateWithTasksForProfile(profileId);
-  return toTimelineV2Data(baseData, new Date(), options);
+  const viewDate = options?.selectedDate ?? new Date();
+  const baseData = await getTodayTemplateWithTasksForProfile(profileId, {
+    selectedDate: viewDate,
+  });
+  return toTimelineV2Data(baseData, viewDate, options);
 }
 
 export async function getTodayPlanV2ForProfile(

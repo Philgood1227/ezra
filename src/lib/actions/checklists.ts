@@ -2,13 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getPrimaryChildProfileForCurrentFamily } from "@/lib/api/children";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import {
   addDemoChecklistTemplateItem,
+  listDemoChecklistTemplates,
+  deleteDemoChecklistInstanceById,
   deleteDemoChecklistTemplate,
   deleteDemoChecklistTemplateItem,
   moveDemoChecklistTemplateItem,
   toggleDemoChecklistItem,
+  ensureDemoChecklistInstanceForTemplateDate,
   updateDemoChecklistTemplateItem,
   upsertDemoChecklistTemplate,
 } from "@/lib/demo/school-diary-store";
@@ -22,10 +26,46 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const checklistTemplateSchema = z.object({
-  type: z.enum(["piscine", "sortie", "evaluation", "quotidien", "autre"]),
+  type: z.enum(["piscine", "sortie", "evaluation", "quotidien", "routine", "autre"]),
   label: z.string().trim().min(2, "Le nom du modele est obligatoire."),
   description: z.string().trim().max(300).nullable(),
   isDefault: z.boolean(),
+  recurrenceRule: z.enum(["none", "daily", "weekdays", "school_days", "weekly_days"]).default("none"),
+  recurrenceDays: z.array(z.number().int().min(1).max(7)).max(7).default([]),
+  recurrenceStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  recurrenceEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+}).superRefine((value, ctx) => {
+  if (value.type !== "routine") {
+    return;
+  }
+
+  if (value.recurrenceRule === "none") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrenceRule"],
+      message: "Choisissez une recurrence pour une routine.",
+    });
+  }
+
+  if (value.recurrenceRule === "weekly_days" && value.recurrenceDays.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrenceDays"],
+      message: "Choisissez au moins un jour de semaine.",
+    });
+  }
+
+  if (
+    value.recurrenceStartDate &&
+    value.recurrenceEndDate &&
+    value.recurrenceEndDate < value.recurrenceStartDate
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrenceEndDate"],
+      message: "La date de fin doit etre apres la date de debut.",
+    });
+  }
 });
 
 const checklistItemSchema = z.object({
@@ -39,6 +79,7 @@ const toggleItemSchema = z.object({
 
 interface ParentContext {
   familyId: string;
+  childProfileId: string;
 }
 
 async function requireParentContext(): Promise<ParentContext | null> {
@@ -47,14 +88,164 @@ async function requireParentContext(): Promise<ParentContext | null> {
     return null;
   }
 
-  return { familyId: context.familyId };
+  const child = await getPrimaryChildProfileForCurrentFamily();
+  if (!child) {
+    return null;
+  }
+
+  return { familyId: context.familyId, childProfileId: child.id };
 }
 
 function revalidateChecklistPages(): void {
   revalidatePath("/parent/checklists");
+  revalidatePath("/parent-v2/checklists");
   revalidatePath("/parent/school-diary");
   revalidatePath("/child/checklists");
   revalidatePath("/child/my-day");
+}
+
+const scheduleChecklistSchema = z.object({
+  templateId: z.string().uuid("Modele invalide."),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide."),
+});
+
+export async function scheduleChecklistTemplateForDateAction(
+  payload: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const context = await requireParentContext();
+  if (!context) {
+    return { success: false, error: "Action reservee au parent." };
+  }
+
+  const parsed = scheduleChecklistSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
+  }
+
+  if (!isSupabaseEnabled()) {
+    const templates = listDemoChecklistTemplates(context.familyId);
+    const template = templates.find((entry) => entry.id === parsed.data.templateId);
+    if (!template) {
+      return { success: false, error: "Modele introuvable." };
+    }
+
+    const created = ensureDemoChecklistInstanceForTemplateDate(
+      context.familyId,
+      context.childProfileId,
+      template,
+      parsed.data.date,
+    );
+    revalidateChecklistPages();
+    return { success: true, data: { id: created.id } };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: template } = await supabase
+    .from("checklist_templates")
+    .select("id, family_id, type, label")
+    .eq("id", parsed.data.templateId)
+    .eq("family_id", context.familyId)
+    .maybeSingle();
+
+  if (!template) {
+    return { success: false, error: "Modele introuvable." };
+  }
+
+  const { data: existing } = await supabase
+    .from("checklist_instances")
+    .select("id")
+    .eq("family_id", context.familyId)
+    .eq("child_profile_id", context.childProfileId)
+    .eq("date", parsed.data.date)
+    .eq("source_template_id", template.id)
+    .maybeSingle();
+
+  if (existing?.id) {
+    return { success: true, data: { id: existing.id } };
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from("checklist_instances")
+    .insert({
+      family_id: context.familyId,
+      child_profile_id: context.childProfileId,
+      diary_entry_id: null,
+      source_template_id: template.id,
+      type: template.type,
+      label: template.label,
+      date: parsed.data.date,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !created) {
+    return { success: false, error: "Impossible de programmer cette checklist." };
+  }
+
+  const { data: templateItems } = await supabase
+    .from("checklist_items")
+    .select("label, sort_order")
+    .eq("template_id", template.id)
+    .order("sort_order", { ascending: true });
+
+  if ((templateItems?.length ?? 0) > 0) {
+    await supabase.from("checklist_instance_items").insert(
+      (templateItems ?? []).map((item, index) => ({
+        checklist_instance_id: created.id,
+        label: item.label,
+        sort_order: Number.isFinite(item.sort_order) ? item.sort_order : index,
+      })),
+    );
+  }
+
+  revalidateChecklistPages();
+  return { success: true, data: { id: created.id } };
+}
+
+export async function deleteScheduledChecklistInstanceAction(instanceId: string): Promise<ActionResult> {
+  const context = await requireParentContext();
+  if (!context) {
+    return { success: false, error: "Action reservee au parent." };
+  }
+
+  if (!isSupabaseEnabled()) {
+    const deleted = deleteDemoChecklistInstanceById(
+      context.familyId,
+      context.childProfileId,
+      instanceId,
+    );
+    if (!deleted) {
+      return { success: false, error: "Checklist programmee introuvable." };
+    }
+
+    revalidateChecklistPages();
+    return { success: true };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: instance } = await supabase
+    .from("checklist_instances")
+    .select("id, family_id, child_profile_id, diary_entry_id")
+    .eq("id", instanceId)
+    .eq("family_id", context.familyId)
+    .eq("child_profile_id", context.childProfileId)
+    .maybeSingle();
+
+  if (!instance) {
+    return { success: false, error: "Checklist programmee introuvable." };
+  }
+
+  if (instance.diary_entry_id) {
+    return { success: false, error: "Cette checklist est liee a une mission et ne peut pas etre supprimee ici." };
+  }
+
+  const { error } = await supabase.from("checklist_instances").delete().eq("id", instance.id);
+  if (error) {
+    return { success: false, error: "Impossible de supprimer cette checklist programmee." };
+  }
+
+  revalidateChecklistPages();
+  return { success: true };
 }
 
 export async function createChecklistTemplateAction(
@@ -70,8 +261,27 @@ export async function createChecklistTemplateAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
   }
 
+  const recurrenceDays = [...new Set(parsed.data.recurrenceDays)].sort((a, b) => a - b);
+  const recurrencePayload =
+    parsed.data.type === "routine"
+      ? {
+          recurrence_rule: parsed.data.recurrenceRule,
+          recurrence_days: recurrenceDays,
+          recurrence_start_date: parsed.data.recurrenceStartDate,
+          recurrence_end_date: parsed.data.recurrenceEndDate,
+        }
+      : {
+          recurrence_rule: "none" as const,
+          recurrence_days: [] as number[],
+          recurrence_start_date: null,
+          recurrence_end_date: null,
+        };
+
   if (!isSupabaseEnabled()) {
-    const created = upsertDemoChecklistTemplate(context.familyId, parsed.data);
+    const created = upsertDemoChecklistTemplate(context.familyId, {
+      ...parsed.data,
+      recurrenceDays,
+    });
     revalidateChecklistPages();
     return { success: true, data: { id: created.id } };
   }
@@ -95,6 +305,7 @@ export async function createChecklistTemplateAction(
       label: parsed.data.label,
       description: parsed.data.description,
       is_default: parsed.data.isDefault,
+      ...recurrencePayload,
     })
     .select("id")
     .single();
@@ -121,8 +332,31 @@ export async function updateChecklistTemplateAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
   }
 
+  const recurrenceDays = [...new Set(parsed.data.recurrenceDays)].sort((a, b) => a - b);
+  const recurrencePayload =
+    parsed.data.type === "routine"
+      ? {
+          recurrence_rule: parsed.data.recurrenceRule,
+          recurrence_days: recurrenceDays,
+          recurrence_start_date: parsed.data.recurrenceStartDate,
+          recurrence_end_date: parsed.data.recurrenceEndDate,
+        }
+      : {
+          recurrence_rule: "none" as const,
+          recurrence_days: [] as number[],
+          recurrence_start_date: null,
+          recurrence_end_date: null,
+        };
+
   if (!isSupabaseEnabled()) {
-    upsertDemoChecklistTemplate(context.familyId, parsed.data, templateId);
+    upsertDemoChecklistTemplate(
+      context.familyId,
+      {
+        ...parsed.data,
+        recurrenceDays,
+      },
+      templateId,
+    );
     revalidateChecklistPages();
     return { success: true };
   }
@@ -146,6 +380,7 @@ export async function updateChecklistTemplateAction(
       label: parsed.data.label,
       description: parsed.data.description,
       is_default: parsed.data.isDefault,
+      ...recurrencePayload,
     })
     .eq("id", templateId)
     .eq("family_id", context.familyId);

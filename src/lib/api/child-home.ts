@@ -1,23 +1,51 @@
 import { getChecklistsForCurrentChildByDay } from "@/lib/api/checklists";
 import { getTodayTemplateWithTasksForProfile } from "@/lib/api/day-view";
 import { getKnowledgeSubjectsForCurrentFamily } from "@/lib/api/knowledge";
-import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { getCurrentAndNextTasks, sortTemplateTasks } from "@/lib/day-templates/timeline";
 import { getCurrentMinutes, timeToMinutes } from "@/lib/day-templates/time";
 import { getMomentLabel } from "@/lib/day-templates/school-calendar";
+import { resolveTaskInstructionsHtml } from "@/lib/day-templates/instructions";
 import type {
+  CategoryColorKey,
+  CategoryIconKey,
+  ChildTimeBlockId,
   ChecklistInstanceSummary,
   DayPeriod,
   DayTemplateBlockSummary,
   TaskInstanceSummary,
 } from "@/lib/day-templates/types";
+import { getChildTimeBlockForTimeRange } from "@/lib/time/day-segments";
+import {
+  getDateKeyInTimeZone,
+} from "@/lib/weather/date";
+import { getWeatherWeekUI } from "@/lib/weather/service";
+import { createFallbackWeatherWeekUI, type WeatherWeekUI } from "@/lib/weather/types";
 
 export interface ChildHomeTaskSummary {
+  id?: string;
+  templateTaskId?: string;
   title: string;
-  icon: string;
-  colorKey: string;
+  iconKey: CategoryIconKey;
+  colorKey: CategoryColorKey;
+  categoryName?: string | null;
   startTime: string;
   endTime: string;
+  itemKind?: "activity" | "mission" | "leisure";
+  itemSubkind?: string | null;
+  status?: TaskInstanceSummary["status"];
+  description?: string | null;
+  instructionsHtml?: string | null;
+  estimatedMinutes?: number | null;
+  helpLinks?: Array<{
+    id: string;
+    label: string;
+    href: string;
+  }> | null;
+  pointsBase?: number;
+  pointsEarned?: number;
+  knowledgeCardId?: string | null;
+  knowledgeCardTitle?: string | null;
+  recommendedChildTimeBlockId?: ChildTimeBlockId;
 }
 
 export type ChildHomeNowState =
@@ -31,6 +59,7 @@ export type ChildHomeNowState =
 export interface ChildHomeData {
   childName: string;
   date: Date;
+  weatherWeek?: WeatherWeekUI;
   currentTask: ChildHomeTaskSummary | null;
   nextTask: ChildHomeTaskSummary | null;
   nowState: ChildHomeNowState;
@@ -45,6 +74,7 @@ export interface ChildHomeData {
   isInSchoolBlock: boolean;
   activeSchoolBlockEndTime: string | null;
   dayBlocks: DayTemplateBlockSummary[];
+  todayTasks: ChildHomeTaskSummary[];
   pointsEarned: number;
   pointsTarget: number;
   tasksCompleted: number;
@@ -57,6 +87,12 @@ export interface ChildHomeData {
   checklistUncheckedCount: number;
   knowledgeCardsCount: number;
   knowledgeSubjectsCount: number;
+}
+
+interface GetChildHomeDataOptions {
+  selectedDate?: Date | undefined;
+  timezone?: string | undefined;
+  childDisplayName?: string | undefined;
 }
 
 function getFirstName(displayName: string | null | undefined): string {
@@ -78,11 +114,31 @@ function toTaskSummary(task: TaskInstanceSummary | null): ChildHomeTaskSummary |
   }
 
   return {
+    id: task.id,
+    templateTaskId: task.templateTaskId,
     title: task.title,
-    icon: task.category.icon,
+    iconKey: task.category.icon,
     colorKey: task.category.colorKey,
+    categoryName: task.category.name,
     startTime: task.startTime,
     endTime: task.endTime,
+    itemKind: task.itemKind ?? "mission",
+    itemSubkind: task.itemSubkind ?? null,
+    status: task.status,
+    description: task.description ?? null,
+    instructionsHtml: resolveTaskInstructionsHtml({
+      instructionsHtml: task.instructionsHtml,
+      description: task.description,
+    }),
+    estimatedMinutes: task.estimatedMinutes ?? null,
+    helpLinks: task.helpLinks ?? null,
+    pointsBase: task.pointsBase,
+    pointsEarned: task.pointsEarned,
+    knowledgeCardId: task.knowledgeCardId ?? null,
+    knowledgeCardTitle: task.knowledgeCardTitle ?? null,
+    recommendedChildTimeBlockId:
+      task.recommendedChildTimeBlockId ??
+      getChildTimeBlockForTimeRange(task.startTime, task.endTime),
   };
 }
 
@@ -96,6 +152,17 @@ function getChecklistStats(items: ChecklistInstanceSummary[]): { count: number; 
 
 function getActionableTasks(tasks: TaskInstanceSummary[]): TaskInstanceSummary[] {
   return tasks.filter((task) => !task.isReadOnly && task.status !== "ignore");
+}
+
+function getHomeVisibleTasks(tasks: TaskInstanceSummary[]): TaskInstanceSummary[] {
+  return tasks.filter((task) => {
+    const itemKind = task.itemKind ?? "mission";
+    if (itemKind === "activity" || itemKind === "leisure") {
+      return true;
+    }
+
+    return !task.isReadOnly && task.status !== "ignore";
+  });
 }
 
 function getNowState(input: {
@@ -147,14 +214,25 @@ function getPointsTarget(input: {
   return computedTarget > 0 ? computedTarget : 0;
 }
 
-export async function getChildHomeData(profileId: string): Promise<ChildHomeData> {
+export async function getChildHomeData(
+  profileId: string,
+  options?: GetChildHomeDataOptions,
+): Promise<ChildHomeData> {
   const now = new Date();
+  const selectedDate = options?.selectedDate ?? now;
+  const timezone = options?.timezone ?? "Europe/Zurich";
+  const selectedDateISO = getDateKeyInTimeZone(selectedDate, timezone);
   const currentMinutes = getCurrentMinutes(now);
-  const context = await getCurrentProfile();
-  const [timelineData, checklistsByDay, knowledgeSubjects] = await Promise.all([
-    getTodayTemplateWithTasksForProfile(profileId),
+  const [timelineData, checklistsByDay, knowledgeSubjects, weatherWeek] = await Promise.all([
+    getTodayTemplateWithTasksForProfile(profileId, {
+      selectedDate,
+    }),
     getChecklistsForCurrentChildByDay(),
     getKnowledgeSubjectsForCurrentFamily(),
+    getWeatherWeekUI({
+      timezone,
+      selectedDateISO,
+    }),
   ]);
 
   const actionableTasks = getActionableTasks(timelineData.instances);
@@ -175,14 +253,18 @@ export async function getChildHomeData(profileId: string): Promise<ChildHomeData
   });
   const tasksCompleted = actionableTasks.filter((task) => task.status === "termine").length;
   const tasksTotal = actionableTasks.length;
+  const todayTasks = getHomeVisibleTasks(timelineData.instances)
+    .map((task) => toTaskSummary(task))
+    .filter((task): task is ChildHomeTaskSummary => task !== null);
 
   const checklistTodayStats = getChecklistStats(checklistsByDay.today);
   const checklistTomorrowStats = getChecklistStats(checklistsByDay.tomorrow);
   const knowledgeCardsCount = knowledgeSubjects.reduce((total, subject) => total + subject.cardCount, 0);
 
   return {
-    childName: getFirstName(context.profile?.display_name),
-    date: now,
+    childName: getFirstName(options?.childDisplayName),
+    date: selectedDate,
+    weatherWeek,
     currentTask: shouldHideCurrentTask ? null : toTaskSummary(currentTask),
     nextTask: toTaskSummary(nextTask),
     nowState,
@@ -197,6 +279,7 @@ export async function getChildHomeData(profileId: string): Promise<ChildHomeData
     isInSchoolBlock: timelineData.dayContext.isInSchoolBlock,
     activeSchoolBlockEndTime: timelineData.dayContext.activeSchoolBlockEndTime,
     dayBlocks: timelineData.blocks,
+    todayTasks,
     pointsEarned,
     pointsTarget,
     tasksCompleted,
@@ -219,9 +302,16 @@ export async function getChildHomeData(profileId: string): Promise<ChildHomeData
 }
 
 export function getEmptyChildHomeData(date = new Date()): ChildHomeData {
+  const timezone = "Europe/Zurich";
+  const selectedDateISO = getDateKeyInTimeZone(date, timezone);
+
   return {
     childName: "Ezra",
     date,
+    weatherWeek: createFallbackWeatherWeekUI({
+      timezone,
+      selectedDateISO,
+    }),
     currentTask: null,
     nextTask: null,
     nowState: "no_tasks",
@@ -236,6 +326,7 @@ export function getEmptyChildHomeData(date = new Date()): ChildHomeData {
     isInSchoolBlock: false,
     activeSchoolBlockEndTime: null,
     dayBlocks: [],
+    todayTasks: [],
     pointsEarned: 0,
     pointsTarget: 0,
     tasksCompleted: 0,

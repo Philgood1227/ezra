@@ -8,6 +8,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "border-border-default bg-bg-surface text-text-secondary",
+        glass: "border-brand-100/65 bg-brand-50/55 text-brand-700 backdrop-blur-sm",
         success: "border-status-success/35 bg-status-success/15 text-status-success",
         warning: "border-status-warning/35 bg-status-warning/15 text-status-warning",
         error: "border-status-error/35 bg-status-error/15 text-status-error",

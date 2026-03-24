@@ -24,6 +24,10 @@ import {
   upsertDemoSchoolPeriod,
   upsertDemoTemplate,
 } from "@/lib/demo/day-templates-store";
+import { categoryInputSchema } from "@/lib/day-templates/category-validation";
+import { resolveCategoryCode } from "@/lib/day-templates/constants";
+import { sanitizeInstructionsHtmlForStorage } from "@/lib/day-templates/instructions";
+import { templateTaskInputSchema } from "@/lib/day-templates/template-task-validation";
 import { timeToMinutes } from "@/lib/day-templates/time";
 import type {
   ActionResult,
@@ -37,13 +41,8 @@ import type {
 } from "@/lib/day-templates/types";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const categorySchema = z.object({
-  name: z.string().trim().min(2, "Le nom de la categorie est obligatoire."),
-  icon: z.string().trim().min(1, "L'icone est obligatoire."),
-  colorKey: z.string().trim().min(1, "La couleur est obligatoire."),
-  defaultItemKind: z.enum(["activity", "mission", "leisure"]).nullable().optional(),
-});
+import { getChildTimeBlockForTimeRange } from "@/lib/time/day-segments";
+import type { Database } from "@/types/database";
 
 const templateSchema = z.object({
   name: z.string().trim().min(2, "Le nom de la journee type est obligatoire."),
@@ -51,26 +50,14 @@ const templateSchema = z.object({
   isDefault: z.boolean(),
 });
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const taskSchema = z.object({
-  categoryId: z.string().uuid("Categorie invalide."),
-  itemKind: z.enum(["activity", "mission", "leisure"]).optional(),
-  itemSubkind: z.string().trim().max(60).nullable().optional(),
-  assignedProfileId: z.string().trim().min(1, "Assignation invalide.").max(120).nullable(),
-  title: z.string().trim().min(2, "Le titre est obligatoire."),
-  description: z.string().trim().max(280).nullable(),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Heure de debut invalide."),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Heure de fin invalide."),
-  pointsBase: z.number().int().min(0).max(99),
-  knowledgeCardId: z.string().uuid("Fiche invalide.").nullable(),
-});
+const childTimeBlockSchema = z.enum(["morning", "noon", "afternoon", "home", "evening"]);
 
 const blockSchema = z.object({
   blockType: z.enum(["school", "home", "transport", "club", "daycare", "free_time", "other"]),
   label: z.string().trim().max(100).nullable(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Heure de debut invalide."),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Heure de fin invalide."),
+  childTimeBlockId: childTimeBlockSchema.nullable().optional(),
 });
 
 const schoolPeriodSchema = z.object({
@@ -91,6 +78,27 @@ async function requireParentContext(): Promise<ParentContext | null> {
   }
 
   return { familyId: context.familyId };
+}
+
+async function resolvePrimaryChildProfileId(
+  context: ParentContext,
+  supabaseClient?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<string | null> {
+  if (!isSupabaseEnabled()) {
+    return "dev-child-id";
+  }
+
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("family_id", context.familyId)
+    .eq("role", "child")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.id ?? null;
 }
 
 function validateTimeRange(startTime: string, endTime: string): string | null {
@@ -156,6 +164,15 @@ function toTaskRangeSummary(task: Pick<TemplateTaskSummary, "id" | "title" | "st
   };
 }
 
+function isSameSchedulingScope(
+  existingScheduledDate: string | null | undefined,
+  candidateScheduledDate: string | null | undefined,
+): boolean {
+  const existing = existingScheduledDate ?? null;
+  const candidate = candidateScheduledDate ?? null;
+  return existing === candidate;
+}
+
 function toBlockRangeSummary(
   block: Pick<DayTemplateBlockSummary, "id" | "label" | "startTime" | "endTime">,
 ): ExistingTimeRange {
@@ -178,7 +195,13 @@ function sanitizeTaskInput(input: TemplateTaskInput): TemplateTaskInput {
     endTime: input.endTime,
     pointsBase: Math.max(0, Math.trunc(input.pointsBase)),
     knowledgeCardId: input.knowledgeCardId ?? null,
+    recommendedChildTimeBlockId: input.recommendedChildTimeBlockId ?? null,
+    scheduledDate: input.scheduledDate?.trim() ? input.scheduledDate.trim() : null,
   };
+
+  if (Object.prototype.hasOwnProperty.call(input, "instructionsHtml")) {
+    sanitized.instructionsHtml = sanitizeInstructionsHtmlForStorage(input.instructionsHtml);
+  }
 
   if (input.itemKind) {
     sanitized.itemKind = input.itemKind;
@@ -193,6 +216,7 @@ function sanitizeBlockInput(input: DayTemplateBlockInput): DayTemplateBlockInput
     label: input.label?.trim() ? input.label.trim() : null,
     startTime: input.startTime,
     endTime: input.endTime,
+    childTimeBlockId: input.childTimeBlockId ?? null,
   };
 }
 
@@ -215,15 +239,13 @@ function revalidateTemplatePaths(templateId?: string): void {
   revalidatePath("/child/my-day");
 }
 
-const EZRA_CATEGORY_PACK: CategoryInput[] = [
-  { name: "Routine", icon: "🧩", colorKey: "category-routine", defaultItemKind: "mission" },
-  { name: "Ecole", icon: "📚", colorKey: "category-ecole", defaultItemKind: "mission" },
-  { name: "Repas", icon: "🍽️", colorKey: "category-repas", defaultItemKind: "activity" },
-  { name: "Hygiene", icon: "🪥", colorKey: "category-loisir", defaultItemKind: "mission" },
-  { name: "Deplacements", icon: "🚌", colorKey: "category-ecole", defaultItemKind: "activity" },
-  { name: "Activite physique", icon: "⚽", colorKey: "category-sport", defaultItemKind: "activity" },
-  { name: "Temps calme", icon: "🌿", colorKey: "category-calme", defaultItemKind: "leisure" },
-  { name: "Sommeil", icon: "🛏️", colorKey: "category-sommeil", defaultItemKind: "leisure" },
+const EZRA_CATEGORY_PACK: Array<CategoryInput & { code: NonNullable<CategoryInput["code"]> }> = [
+  { code: "homework", name: "Devoirs", icon: "homework", colorKey: "category-ecole", defaultItemKind: "mission" },
+  { code: "revision", name: "Revisions", icon: "knowledge", colorKey: "category-calme", defaultItemKind: "mission" },
+  { code: "training", name: "Entrainement", icon: "sport", colorKey: "category-sport", defaultItemKind: "mission" },
+  { code: "activity", name: "Activites", icon: "activity", colorKey: "category-sport", defaultItemKind: "activity" },
+  { code: "routine", name: "Routine", icon: "routine", colorKey: "category-routine", defaultItemKind: "activity" },
+  { code: "leisure", name: "Loisirs", icon: "leisure", colorKey: "category-loisir", defaultItemKind: "leisure" },
 ];
 
 function firstIssueMessage(issues: z.ZodIssue[], fallback: string): string {
@@ -250,10 +272,6 @@ function supabaseWriteErrorMessage(
   return fallback;
 }
 
-function isUuidLike(value: string): boolean {
-  return uuidPattern.test(value);
-}
-
 export async function createCategoryAction(
   input: CategoryInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -262,7 +280,7 @@ export async function createCategoryAction(
     return { success: false, error: "Action reservee au parent." };
   }
 
-  const parsed = categorySchema.safeParse(input);
+  const parsed = categoryInputSchema.safeParse(input);
   if (!parsed.success) {
     return {
       success: false,
@@ -270,7 +288,16 @@ export async function createCategoryAction(
     };
   }
 
+  const resolvedCategoryCode = resolveCategoryCode({
+    code: parsed.data.code ?? null,
+    name: parsed.data.name,
+    iconKey: parsed.data.icon,
+    colorKey: parsed.data.colorKey,
+    defaultItemKind: parsed.data.defaultItemKind ?? null,
+  });
+
   const categoryPayload: CategoryInput = {
+    code: resolvedCategoryCode,
     name: parsed.data.name,
     icon: parsed.data.icon,
     colorKey: parsed.data.colorKey,
@@ -288,6 +315,7 @@ export async function createCategoryAction(
     .from("task_categories")
     .insert({
       family_id: context.familyId,
+      code: resolvedCategoryCode,
       name: categoryPayload.name,
       icon: categoryPayload.icon,
       color_key: categoryPayload.colorKey,
@@ -313,7 +341,7 @@ export async function updateCategoryAction(
     return { success: false, error: "Action reservee au parent." };
   }
 
-  const parsed = categorySchema.safeParse(input);
+  const parsed = categoryInputSchema.safeParse(input);
   if (!parsed.success) {
     return {
       success: false,
@@ -321,7 +349,16 @@ export async function updateCategoryAction(
     };
   }
 
+  const resolvedCategoryCode = resolveCategoryCode({
+    code: parsed.data.code ?? null,
+    name: parsed.data.name,
+    iconKey: parsed.data.icon,
+    colorKey: parsed.data.colorKey,
+    defaultItemKind: parsed.data.defaultItemKind ?? null,
+  });
+
   const categoryPayload: CategoryInput = {
+    code: resolvedCategoryCode,
     name: parsed.data.name,
     icon: parsed.data.icon,
     colorKey: parsed.data.colorKey,
@@ -341,6 +378,7 @@ export async function updateCategoryAction(
   const { error } = await supabase
     .from("task_categories")
     .update({
+      code: resolvedCategoryCode,
       name: categoryPayload.name,
       icon: categoryPayload.icon,
       color_key: categoryPayload.colorKey,
@@ -550,7 +588,7 @@ export async function createTemplateTaskAction(
   }
 
   const normalizedInput = sanitizeTaskInput(input);
-  const parsed = taskSchema.safeParse(normalizedInput);
+  const parsed = templateTaskInputSchema.safeParse(normalizedInput);
   if (!parsed.success) {
     return {
       success: false,
@@ -563,8 +601,19 @@ export async function createTemplateTaskAction(
     return { success: false, error: rangeError };
   }
 
+  const resolvedRecommendedChildTimeBlockId =
+    normalizedInput.recommendedChildTimeBlockId ??
+    getChildTimeBlockForTimeRange(normalizedInput.startTime, normalizedInput.endTime);
+
   if (!isSupabaseEnabled()) {
-    const existingDemoTasks = listDemoTemplateTasks(context.familyId, templateId).map(toTaskRangeSummary);
+    const assignedChildProfileId = await resolvePrimaryChildProfileId(context);
+    if (!assignedChildProfileId) {
+      return { success: false, error: "Aucun profil enfant configure pour la famille." };
+    }
+
+    const existingDemoTasks = listDemoTemplateTasks(context.familyId, templateId)
+      .filter((task) => isSameSchedulingScope(task.scheduledDate, normalizedInput.scheduledDate))
+      .map(toTaskRangeSummary);
     const overlap = findOverlapRange({
       candidateStartTime: normalizedInput.startTime,
       candidateEndTime: normalizedInput.endTime,
@@ -574,7 +623,11 @@ export async function createTemplateTaskAction(
       return { success: false, error: buildTaskOverlapError(overlap) };
     }
 
-    const created = createDemoTemplateTask(context.familyId, templateId, normalizedInput);
+    const created = createDemoTemplateTask(context.familyId, templateId, {
+      ...normalizedInput,
+      assignedProfileId: assignedChildProfileId,
+      recommendedChildTimeBlockId: resolvedRecommendedChildTimeBlockId,
+    });
     if (!created) {
       return { success: false, error: "Categorie ou template introuvable." };
     }
@@ -605,28 +658,14 @@ export async function createTemplateTaskAction(
   }
 
   const resolvedItemKind = normalizedInput.itemKind ?? category.default_item_kind ?? "mission";
-
-  if (normalizedInput.assignedProfileId) {
-    if (!isUuidLike(normalizedInput.assignedProfileId)) {
-      return { success: false, error: "Assignation invalide." };
-    }
-
-    const { data: assignedProfile } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", normalizedInput.assignedProfileId)
-      .eq("family_id", context.familyId)
-      .in("role", ["parent", "child"])
-      .maybeSingle();
-
-    if (!assignedProfile) {
-      return { success: false, error: "Assignation invalide." };
-    }
+  const assignedChildProfileId = await resolvePrimaryChildProfileId(context, supabase);
+  if (!assignedChildProfileId) {
+    return { success: false, error: "Aucun profil enfant configure pour la famille." };
   }
 
   const { data: existingTasks, error: existingTasksError } = await supabase
     .from("template_tasks")
-    .select("id, title, start_time, end_time")
+    .select("id, title, start_time, end_time, scheduled_date")
     .eq("template_id", templateId);
 
   if (existingTasksError) {
@@ -641,7 +680,9 @@ export async function createTemplateTaskAction(
       label: task.title?.trim() || "Tache",
       startTime: task.start_time,
       endTime: task.end_time,
-    })),
+    })).filter((taskRange, index) =>
+      isSameSchedulingScope((existingTasks ?? [])[index]?.scheduled_date, normalizedInput.scheduledDate),
+    ),
   });
   if (overlap) {
     return { success: false, error: buildTaskOverlapError(overlap) };
@@ -658,11 +699,14 @@ export async function createTemplateTaskAction(
       item_subkind: normalizedInput.itemSubkind ?? null,
       title: normalizedInput.title,
       description: normalizedInput.description,
+      instructions_html: normalizedInput.instructionsHtml ?? null,
       start_time: normalizedInput.startTime,
       end_time: normalizedInput.endTime,
       points_base: normalizedInput.pointsBase,
       knowledge_card_id: normalizedInput.knowledgeCardId ?? null,
-      assigned_profile_id: normalizedInput.assignedProfileId ?? null,
+      assigned_profile_id: assignedChildProfileId,
+      recommended_child_time_block_id: resolvedRecommendedChildTimeBlockId,
+      scheduled_date: normalizedInput.scheduledDate ?? null,
       sort_order: sortOrder,
     })
     .select("id")
@@ -686,7 +730,7 @@ export async function updateTemplateTaskAction(
   }
 
   const normalizedInput = sanitizeTaskInput(input);
-  const parsed = taskSchema.safeParse(normalizedInput);
+  const parsed = templateTaskInputSchema.safeParse(normalizedInput);
   if (!parsed.success) {
     return {
       success: false,
@@ -699,7 +743,16 @@ export async function updateTemplateTaskAction(
     return { success: false, error: rangeError };
   }
 
+  const resolvedRecommendedChildTimeBlockId =
+    normalizedInput.recommendedChildTimeBlockId ??
+    getChildTimeBlockForTimeRange(normalizedInput.startTime, normalizedInput.endTime);
+
   if (!isSupabaseEnabled()) {
+    const assignedChildProfileId = await resolvePrimaryChildProfileId(context);
+    if (!assignedChildProfileId) {
+      return { success: false, error: "Aucun profil enfant configure pour la famille." };
+    }
+
     const templates = listDemoTemplates(context.familyId);
     const linkedTemplate = templates.find((entry) =>
       listDemoTemplateTasks(context.familyId, entry.id).some((task) => task.id === taskId),
@@ -709,7 +762,9 @@ export async function updateTemplateTaskAction(
       return { success: false, error: "Bloc introuvable." };
     }
 
-    const existingDemoTasks = listDemoTemplateTasks(context.familyId, linkedTemplate.id).map(toTaskRangeSummary);
+    const existingDemoTasks = listDemoTemplateTasks(context.familyId, linkedTemplate.id)
+      .filter((task) => isSameSchedulingScope(task.scheduledDate, normalizedInput.scheduledDate))
+      .map(toTaskRangeSummary);
     const overlap = findOverlapRange({
       candidateStartTime: normalizedInput.startTime,
       candidateEndTime: normalizedInput.endTime,
@@ -720,7 +775,11 @@ export async function updateTemplateTaskAction(
       return { success: false, error: buildTaskOverlapError(overlap) };
     }
 
-    const updated = updateDemoTemplateTask(context.familyId, taskId, normalizedInput);
+    const updated = updateDemoTemplateTask(context.familyId, taskId, {
+      ...normalizedInput,
+      assignedProfileId: assignedChildProfileId,
+      recommendedChildTimeBlockId: resolvedRecommendedChildTimeBlockId,
+    });
     if (!updated) {
       return { success: false, error: "Bloc introuvable." };
     }
@@ -760,28 +819,14 @@ export async function updateTemplateTaskAction(
   }
 
   const resolvedItemKind = normalizedInput.itemKind ?? category.default_item_kind ?? "mission";
-
-  if (normalizedInput.assignedProfileId) {
-    if (!isUuidLike(normalizedInput.assignedProfileId)) {
-      return { success: false, error: "Assignation invalide." };
-    }
-
-    const { data: assignedProfile } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", normalizedInput.assignedProfileId)
-      .eq("family_id", context.familyId)
-      .in("role", ["parent", "child"])
-      .maybeSingle();
-
-    if (!assignedProfile) {
-      return { success: false, error: "Assignation invalide." };
-    }
+  const assignedChildProfileId = await resolvePrimaryChildProfileId(context, supabase);
+  if (!assignedChildProfileId) {
+    return { success: false, error: "Aucun profil enfant configure pour la famille." };
   }
 
   const { data: siblingTasks, error: siblingTasksError } = await supabase
     .from("template_tasks")
-    .select("id, title, start_time, end_time")
+    .select("id, title, start_time, end_time, scheduled_date")
     .eq("template_id", taskRow.template_id)
     .neq("id", taskId);
 
@@ -797,26 +842,36 @@ export async function updateTemplateTaskAction(
       label: task.title?.trim() || "Tache",
       startTime: task.start_time,
       endTime: task.end_time,
-    })),
+    })).filter((taskRange, index) =>
+      isSameSchedulingScope((siblingTasks ?? [])[index]?.scheduled_date, normalizedInput.scheduledDate),
+    ),
   });
   if (overlap) {
     return { success: false, error: buildTaskOverlapError(overlap) };
   }
 
+  const taskUpdatePayload: Database["public"]["Tables"]["template_tasks"]["Update"] = {
+    category_id: normalizedInput.categoryId,
+    item_kind: resolvedItemKind,
+    item_subkind: normalizedInput.itemSubkind ?? null,
+    title: normalizedInput.title,
+    description: normalizedInput.description,
+    start_time: normalizedInput.startTime,
+    end_time: normalizedInput.endTime,
+    points_base: normalizedInput.pointsBase,
+    knowledge_card_id: normalizedInput.knowledgeCardId ?? null,
+    assigned_profile_id: assignedChildProfileId,
+    recommended_child_time_block_id: resolvedRecommendedChildTimeBlockId,
+    scheduled_date: normalizedInput.scheduledDate ?? null,
+  };
+
+  if (Object.prototype.hasOwnProperty.call(normalizedInput, "instructionsHtml")) {
+    taskUpdatePayload.instructions_html = normalizedInput.instructionsHtml ?? null;
+  }
+
   const { error } = await supabase
     .from("template_tasks")
-    .update({
-      category_id: normalizedInput.categoryId,
-      item_kind: resolvedItemKind,
-      item_subkind: normalizedInput.itemSubkind ?? null,
-      title: normalizedInput.title,
-      description: normalizedInput.description,
-      start_time: normalizedInput.startTime,
-      end_time: normalizedInput.endTime,
-      points_base: normalizedInput.pointsBase,
-      knowledge_card_id: normalizedInput.knowledgeCardId ?? null,
-      assigned_profile_id: normalizedInput.assignedProfileId ?? null,
-    })
+    .update(taskUpdatePayload)
     .eq("id", taskId)
     .eq("template_id", taskRow.template_id);
 
@@ -900,6 +955,10 @@ export async function createTemplateBlockAction(
     return { success: false, error: rangeError };
   }
 
+  const resolvedChildTimeBlockId =
+    parsed.data.childTimeBlockId ??
+    getChildTimeBlockForTimeRange(parsed.data.startTime, parsed.data.endTime);
+
   if (!isSupabaseEnabled()) {
     const existingDemoBlocks = listDemoTemplateBlocks(context.familyId, templateId).map(toBlockRangeSummary);
     const overlap = findOverlapRange({
@@ -911,7 +970,10 @@ export async function createTemplateBlockAction(
       return { success: false, error: buildBlockOverlapError(overlap) };
     }
 
-    const created = createDemoTemplateBlock(context.familyId, templateId, parsed.data);
+    const created = createDemoTemplateBlock(context.familyId, templateId, {
+      ...parsed.data,
+      childTimeBlockId: resolvedChildTimeBlockId,
+    });
     if (!created) {
       return { success: false, error: "Journee type introuvable." };
     }
@@ -964,6 +1026,7 @@ export async function createTemplateBlockAction(
       label: parsed.data.label,
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
+      child_time_block_id: resolvedChildTimeBlockId,
       sort_order: sortOrder,
     })
     .select("id")
@@ -1003,6 +1066,10 @@ export async function updateTemplateBlockAction(
     return { success: false, error: rangeError };
   }
 
+  const resolvedChildTimeBlockId =
+    parsed.data.childTimeBlockId ??
+    getChildTimeBlockForTimeRange(parsed.data.startTime, parsed.data.endTime);
+
   if (!isSupabaseEnabled()) {
     const templates = listDemoTemplates(context.familyId);
     const linkedTemplate = templates.find((entry) =>
@@ -1024,7 +1091,10 @@ export async function updateTemplateBlockAction(
       return { success: false, error: buildBlockOverlapError(overlap) };
     }
 
-    const updated = updateDemoTemplateBlock(context.familyId, blockId, parsed.data);
+    const updated = updateDemoTemplateBlock(context.familyId, blockId, {
+      ...parsed.data,
+      childTimeBlockId: resolvedChildTimeBlockId,
+    });
     if (!updated) {
       return { success: false, error: "Plage introuvable." };
     }
@@ -1085,6 +1155,7 @@ export async function updateTemplateBlockAction(
       label: parsed.data.label,
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
+      child_time_block_id: resolvedChildTimeBlockId,
     })
     .eq("id", blockId)
     .eq("day_template_id", blockRow.day_template_id);
@@ -1381,19 +1452,28 @@ export async function seedEzraCategoryPackAction(): Promise<ActionResult<{ creat
   }
 
   if (!isSupabaseEnabled()) {
-    const existingNames = new Set(
-      listDemoCategories(context.familyId).map((category) => category.name.toLocaleLowerCase("fr")),
+    const existingByCode = new Map(
+      listDemoCategories(context.familyId).map((category) => [
+        resolveCategoryCode({
+          code: category.code ?? null,
+          name: category.name,
+          iconKey: category.icon,
+          colorKey: category.colorKey,
+          defaultItemKind: category.defaultItemKind ?? null,
+        }),
+        category,
+      ]),
     );
     let createdCount = 0;
 
     for (const category of EZRA_CATEGORY_PACK) {
-      const key = category.name.toLocaleLowerCase("fr");
-      if (existingNames.has(key)) {
-        continue;
+      const existing = existingByCode.get(category.code);
+      if (existing) {
+        updateDemoCategory(context.familyId, existing.id, category);
+      } else {
+        createDemoCategory(context.familyId, category);
+        createdCount += 1;
       }
-      createDemoCategory(context.familyId, category);
-      existingNames.add(key);
-      createdCount += 1;
     }
 
     revalidateTemplatePaths();
@@ -1403,36 +1483,66 @@ export async function seedEzraCategoryPackAction(): Promise<ActionResult<{ creat
   const supabase = await createSupabaseServerClient();
   const { data: existingCategories, error: existingError } = await supabase
     .from("task_categories")
-    .select("name")
+    .select("id, code, name, icon, color_key, default_item_kind")
     .eq("family_id", context.familyId);
 
   if (existingError) {
     return { success: false, error: "Impossible de verifier les categories existantes." };
   }
 
-  const existingNames = new Set(
-    (existingCategories ?? []).map((category) => category.name.trim().toLocaleLowerCase("fr")),
+  const existingByCode = new Map(
+    (existingCategories ?? []).map((category) => [
+      resolveCategoryCode({
+        code: category.code,
+        name: category.name,
+        iconKey: category.icon,
+        colorKey: category.color_key,
+        defaultItemKind: category.default_item_kind,
+      }),
+      category,
+    ]),
   );
 
-  const toInsert = EZRA_CATEGORY_PACK.filter(
-    (category) => !existingNames.has(category.name.trim().toLocaleLowerCase("fr")),
-  ).map((category) => ({
-    family_id: context.familyId,
-    name: category.name,
-    icon: category.icon,
-    color_key: category.colorKey,
-    default_item_kind: category.defaultItemKind ?? null,
-  }));
+  let createdCount = 0;
 
-  if (toInsert.length === 0) {
-    return { success: true, data: { createdCount: 0 } };
-  }
+  for (const category of EZRA_CATEGORY_PACK) {
+    const existing = existingByCode.get(category.code);
 
-  const { error: insertError } = await supabase.from("task_categories").insert(toInsert);
-  if (insertError) {
-    return { success: false, error: "Impossible d'installer le pack de categories." };
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("task_categories")
+        .update({
+          code: category.code,
+          name: category.name,
+          icon: category.icon,
+          color_key: category.colorKey,
+          default_item_kind: category.defaultItemKind ?? null,
+        })
+        .eq("id", existing.id)
+        .eq("family_id", context.familyId);
+
+      if (updateError) {
+        return { success: false, error: "Impossible de synchroniser le pack de categories." };
+      }
+      continue;
+    }
+
+    const { error: insertError } = await supabase.from("task_categories").insert({
+      family_id: context.familyId,
+      code: category.code,
+      name: category.name,
+      icon: category.icon,
+      color_key: category.colorKey,
+      default_item_kind: category.defaultItemKind ?? null,
+    });
+
+    if (insertError) {
+      return { success: false, error: "Impossible d'installer le pack de categories." };
+    }
+
+    createdCount += 1;
   }
 
   revalidateTemplatePaths();
-  return { success: true, data: { createdCount: toInsert.length } };
+  return { success: true, data: { createdCount } };
 }

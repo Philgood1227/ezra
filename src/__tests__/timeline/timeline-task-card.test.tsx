@@ -1,15 +1,18 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+﻿import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TimelineTaskCard } from "@/components/timeline/timeline-task-card";
 
-const baseProps = {
+type TimelineTaskCardProps = ComponentProps<typeof TimelineTaskCard>;
+
+const baseProps: Omit<TimelineTaskCardProps, "status"> = {
   instanceId: "task-1",
   title: "Lecture",
   startTime: "08:00",
   endTime: "08:30",
   category: {
     name: "Calme",
-    icon: "📘",
+    icon: "knowledge",
     colorKey: "category-calme",
   },
   assignedTo: { displayName: "Ezra", role: "child" },

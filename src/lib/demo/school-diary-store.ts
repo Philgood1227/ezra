@@ -19,6 +19,10 @@ interface DemoChecklistTemplateRecord {
   label: string;
   description: string | null;
   isDefault: boolean;
+  recurrenceRule: ChecklistTemplateSummary["recurrenceRule"];
+  recurrenceDays: number[];
+  recurrenceStartDate: string | null;
+  recurrenceEndDate: string | null;
   items: ChecklistTemplateSummary["items"];
 }
 
@@ -27,6 +31,7 @@ interface DemoChecklistInstanceRecord {
   familyId: string;
   childProfileId: string;
   diaryEntryId: string | null;
+  sourceTemplateId?: string | null;
   type: string;
   label: string;
   date: string;
@@ -251,6 +256,10 @@ export function listDemoChecklistTemplates(familyId: string): ChecklistTemplateS
       label: template.label,
       description: template.description,
       isDefault: template.isDefault,
+      recurrenceRule: template.recurrenceRule ?? "none",
+      recurrenceDays: template.recurrenceDays ?? [],
+      recurrenceStartDate: template.recurrenceStartDate ?? null,
+      recurrenceEndDate: template.recurrenceEndDate ?? null,
       items: template.items.slice().sort((left, right) => left.sortOrder - right.sortOrder),
     }));
 }
@@ -262,6 +271,10 @@ export function upsertDemoChecklistTemplate(
     label: string;
     description: string | null;
     isDefault: boolean;
+    recurrenceRule: ChecklistTemplateSummary["recurrenceRule"];
+    recurrenceDays: number[];
+    recurrenceStartDate: string | null;
+    recurrenceEndDate: string | null;
   },
   templateId?: string,
 ): ChecklistTemplateSummary {
@@ -283,6 +296,10 @@ export function upsertDemoChecklistTemplate(
     existing.label = input.label;
     existing.description = input.description;
     existing.isDefault = input.isDefault;
+    existing.recurrenceRule = input.recurrenceRule;
+    existing.recurrenceDays = input.recurrenceDays;
+    existing.recurrenceStartDate = input.recurrenceStartDate;
+    existing.recurrenceEndDate = input.recurrenceEndDate;
     persistStoresToDisk();
     return {
       id: existing.id,
@@ -291,6 +308,10 @@ export function upsertDemoChecklistTemplate(
       label: existing.label,
       description: existing.description,
       isDefault: existing.isDefault,
+      recurrenceRule: existing.recurrenceRule,
+      recurrenceDays: existing.recurrenceDays,
+      recurrenceStartDate: existing.recurrenceStartDate,
+      recurrenceEndDate: existing.recurrenceEndDate,
       items: existing.items.slice().sort((left, right) => left.sortOrder - right.sortOrder),
     };
   }
@@ -302,6 +323,10 @@ export function upsertDemoChecklistTemplate(
     label: input.label,
     description: input.description,
     isDefault: input.isDefault,
+    recurrenceRule: input.recurrenceRule,
+    recurrenceDays: input.recurrenceDays,
+    recurrenceStartDate: input.recurrenceStartDate,
+    recurrenceEndDate: input.recurrenceEndDate,
     items: [],
   };
 
@@ -315,6 +340,10 @@ export function upsertDemoChecklistTemplate(
     label: created.label,
     description: created.description,
     isDefault: created.isDefault,
+    recurrenceRule: created.recurrenceRule,
+    recurrenceDays: created.recurrenceDays,
+    recurrenceStartDate: created.recurrenceStartDate,
+    recurrenceEndDate: created.recurrenceEndDate,
     items: [],
   };
 }
@@ -471,6 +500,7 @@ export function upsertDemoChecklistInstanceForDiaryEntry(
       familyId: existing.familyId,
       childProfileId: existing.childProfileId,
       diaryEntryId: existing.diaryEntryId,
+      sourceTemplateId: existing.sourceTemplateId ?? null,
       type: existing.type,
       label: existing.label,
       date: existing.date,
@@ -484,6 +514,7 @@ export function upsertDemoChecklistInstanceForDiaryEntry(
     familyId,
     childProfileId,
     diaryEntryId,
+    sourceTemplateId: null,
     type: draft.type,
     label: draft.label,
     date: draft.date,
@@ -506,6 +537,7 @@ export function upsertDemoChecklistInstanceForDiaryEntry(
     familyId: created.familyId,
     childProfileId: created.childProfileId,
     diaryEntryId: created.diaryEntryId,
+    sourceTemplateId: created.sourceTemplateId ?? null,
     type: created.type,
     label: created.label,
     date: created.date,
@@ -541,6 +573,7 @@ export function listDemoChecklistInstancesByDates(
       familyId: instance.familyId,
       childProfileId: instance.childProfileId,
       diaryEntryId: instance.diaryEntryId,
+      sourceTemplateId: instance.sourceTemplateId ?? null,
       type: instance.type,
       label: instance.label,
       date: instance.date,
@@ -575,6 +608,7 @@ export function toggleDemoChecklistItem(
       familyId: instance.familyId,
       childProfileId: instance.childProfileId,
       diaryEntryId: instance.diaryEntryId,
+      sourceTemplateId: instance.sourceTemplateId ?? null,
       type: instance.type,
       label: instance.label,
       date: instance.date,
@@ -584,6 +618,114 @@ export function toggleDemoChecklistItem(
   }
 
   return null;
+}
+
+export function ensureDemoChecklistInstanceForTemplateDate(
+  familyId: string,
+  childProfileId: string,
+  template: ChecklistTemplateSummary,
+  dateKey: string,
+): ChecklistInstanceSummary {
+  const store = getStore(familyId);
+  const existing = store.checklistInstances.find(
+    (instance) =>
+      instance.childProfileId === childProfileId &&
+      instance.sourceTemplateId === template.id &&
+      instance.date === dateKey,
+  );
+
+  if (existing) {
+    return {
+      id: existing.id,
+      familyId: existing.familyId,
+      childProfileId: existing.childProfileId,
+      diaryEntryId: existing.diaryEntryId,
+      sourceTemplateId: existing.sourceTemplateId ?? null,
+      type: existing.type,
+      label: existing.label,
+      date: existing.date,
+      createdAt: existing.createdAt,
+      items: existing.items.slice().sort((left, right) => left.sortOrder - right.sortOrder),
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const created: DemoChecklistInstanceRecord = {
+    id: randomUUID(),
+    familyId,
+    childProfileId,
+    diaryEntryId: null,
+    sourceTemplateId: template.id,
+    type: template.type,
+    label: template.label,
+    date: dateKey,
+    createdAt: nowIso,
+    items: template.items.map((item, index) => ({
+      id: randomUUID(),
+      checklistInstanceId: "",
+      label: item.label,
+      isChecked: false,
+      sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index,
+    })),
+  };
+  created.items = created.items.map((item) => ({ ...item, checklistInstanceId: created.id }));
+
+  store.checklistInstances.push(created);
+  persistStoresToDisk();
+
+  return {
+    id: created.id,
+    familyId: created.familyId,
+    childProfileId: created.childProfileId,
+    diaryEntryId: created.diaryEntryId,
+    sourceTemplateId: created.sourceTemplateId ?? null,
+    type: created.type,
+    label: created.label,
+    date: created.date,
+    createdAt: created.createdAt,
+    items: created.items.slice().sort((left, right) => left.sortOrder - right.sortOrder),
+  };
+}
+
+export function listDemoChecklistInstancesForChildFromDate(
+  familyId: string,
+  childProfileId: string,
+  fromDate: string,
+): ChecklistInstanceSummary[] {
+  return getStore(familyId).checklistInstances
+    .filter((instance) => instance.childProfileId === childProfileId && instance.date >= fromDate)
+    .sort((left, right) => left.date.localeCompare(right.date) || left.label.localeCompare(right.label))
+    .map((instance) => ({
+      id: instance.id,
+      familyId: instance.familyId,
+      childProfileId: instance.childProfileId,
+      diaryEntryId: instance.diaryEntryId,
+      sourceTemplateId: instance.sourceTemplateId ?? null,
+      type: instance.type,
+      label: instance.label,
+      date: instance.date,
+      createdAt: instance.createdAt,
+      items: instance.items.slice().sort((left, right) => left.sortOrder - right.sortOrder),
+    }));
+}
+
+export function deleteDemoChecklistInstanceById(
+  familyId: string,
+  childProfileId: string,
+  instanceId: string,
+): boolean {
+  const store = getStore(familyId);
+  const before = store.checklistInstances.length;
+  store.checklistInstances = store.checklistInstances.filter(
+    (instance) => !(instance.id === instanceId && instance.childProfileId === childProfileId),
+  );
+
+  if (before === store.checklistInstances.length) {
+    return false;
+  }
+
+  persistStoresToDisk();
+  return true;
 }
 
 export function ensureDemoNotificationRules(

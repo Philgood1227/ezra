@@ -10,8 +10,10 @@ import type {
   TemplateSummary,
   TemplateTaskSummary,
 } from "@/lib/day-templates/types";
+import { resolveCategoryCode } from "@/lib/day-templates/constants";
 import { sortTemplateTasks } from "@/lib/day-templates/timeline";
 import { normalizeTimeLabel } from "@/lib/day-templates/time";
+import { getChildTimeBlockForTimeRange } from "@/lib/time/day-segments";
 
 interface DemoTaskRecord extends Omit<TemplateTaskSummary, "category"> {
   familyId: string;
@@ -38,7 +40,17 @@ function ensureStoreDir(): void {
 
 function normalizeStore(store: PartialDemoStore | undefined): DemoStore {
   return {
-    categories: store?.categories ?? [],
+    categories:
+      store?.categories?.map((category) => ({
+        ...category,
+        code: resolveCategoryCode({
+          code: category.code ?? null,
+          name: category.name,
+          iconKey: category.icon,
+          colorKey: category.colorKey,
+          defaultItemKind: category.defaultItemKind ?? null,
+        }),
+      })) ?? [],
     templates: store?.templates ?? [],
     tasks: store?.tasks ?? [],
     blocks: store?.blocks ?? [],
@@ -180,6 +192,13 @@ export function createDemoCategory(
   const category: TaskCategorySummary = {
     id: randomUUID(),
     familyId,
+    code: resolveCategoryCode({
+      code: input.code ?? null,
+      name: input.name,
+      iconKey: input.icon,
+      colorKey: input.colorKey,
+      defaultItemKind: input.defaultItemKind ?? null,
+    }),
     name: input.name,
     icon: input.icon,
     colorKey: input.colorKey,
@@ -201,6 +220,13 @@ export function updateDemoCategory(
     return null;
   }
 
+  category.code = resolveCategoryCode({
+    code: input.code ?? null,
+    name: input.name,
+    iconKey: input.icon,
+    colorKey: input.colorKey,
+    defaultItemKind: input.defaultItemKind ?? null,
+  });
   category.name = input.name;
   category.icon = input.icon;
   category.colorKey = input.colorKey;
@@ -301,12 +327,17 @@ export function listDemoTemplateTasks(familyId: string, templateId: string): Tem
         assignedProfileRole: assignee.role,
         title: task.title,
         description: task.description,
+        instructionsHtml: task.instructionsHtml ?? null,
         startTime: task.startTime,
         endTime: task.endTime,
         sortOrder: task.sortOrder,
         pointsBase: task.pointsBase,
         knowledgeCardId: task.knowledgeCardId ?? null,
         knowledgeCardTitle: null,
+        recommendedChildTimeBlockId:
+          task.recommendedChildTimeBlockId ??
+          getChildTimeBlockForTimeRange(task.startTime, task.endTime),
+        scheduledDate: task.scheduledDate ?? null,
         category,
       });
     });
@@ -344,12 +375,17 @@ export function createDemoTemplateTask(
     assignedProfileRole: null,
     title: input.title,
     description: input.description,
+    instructionsHtml: input.instructionsHtml ?? null,
     startTime: normalizeTimeLabel(input.startTime),
     endTime: normalizeTimeLabel(input.endTime),
     sortOrder: nextOrder,
     pointsBase: Math.max(0, Math.trunc(input.pointsBase)),
     knowledgeCardId: input.knowledgeCardId ?? null,
     knowledgeCardTitle: null,
+    recommendedChildTimeBlockId:
+      input.recommendedChildTimeBlockId ??
+      getChildTimeBlockForTimeRange(input.startTime, input.endTime),
+    scheduledDate: input.scheduledDate ?? null,
   };
 
   store.tasks.push(createdTask);
@@ -385,10 +421,15 @@ export function updateDemoTemplateTask(
   task.assignedProfileId = input.assignedProfileId ?? null;
   task.title = input.title;
   task.description = input.description;
+  task.instructionsHtml = input.instructionsHtml ?? null;
   task.startTime = normalizeTimeLabel(input.startTime);
   task.endTime = normalizeTimeLabel(input.endTime);
   task.pointsBase = Math.max(0, Math.trunc(input.pointsBase));
   task.knowledgeCardId = input.knowledgeCardId ?? null;
+  task.recommendedChildTimeBlockId =
+    input.recommendedChildTimeBlockId ??
+    getChildTimeBlockForTimeRange(input.startTime, input.endTime);
+  task.scheduledDate = input.scheduledDate ?? null;
   persistStoresToDisk();
 
   return {
@@ -485,6 +526,9 @@ export function createDemoTemplateBlock(
     startTime: normalizeTimeLabel(input.startTime),
     endTime: normalizeTimeLabel(input.endTime),
     sortOrder: nextOrder,
+    childTimeBlockId:
+      input.childTimeBlockId ??
+      getChildTimeBlockForTimeRange(input.startTime, input.endTime),
   };
 
   store.blocks.push(block);
@@ -513,6 +557,9 @@ export function updateDemoTemplateBlock(
   block.label = input.label;
   block.startTime = normalizeTimeLabel(input.startTime);
   block.endTime = normalizeTimeLabel(input.endTime);
+  block.childTimeBlockId =
+    input.childTimeBlockId ??
+    getChildTimeBlockForTimeRange(input.startTime, input.endTime);
   rebuildBlockSortOrder(store, block.dayTemplateId);
   persistStoresToDisk();
   return block;

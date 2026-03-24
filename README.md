@@ -47,3 +47,4 @@ You can also force fallback mode by setting `EZRA_DEV_AUTH_BYPASS=true`.
 
 - `docs/architecture-overview.md`
 - `docs/design-system-basics.md`
+- `docs/revisions/ai-generation.md`

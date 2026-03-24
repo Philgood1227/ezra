@@ -1,5 +1,12 @@
 ﻿import { getCurrentProfile } from "@/lib/auth/current-profile";
-import { getWeekdayLabel, getWeekdaySortKey, WEEKDAY_OPTIONS } from "@/lib/day-templates/constants";
+import {
+  getWeekdayLabel,
+  getWeekdaySortKey,
+  parseCategoryColorKey,
+  parseCategoryIconKey,
+  resolveCategoryCode,
+  WEEKDAY_OPTIONS,
+} from "@/lib/day-templates/constants";
 import {
   listDemoCategories,
   listDemoSchoolPeriods,
@@ -9,6 +16,7 @@ import {
 } from "@/lib/demo/day-templates-store";
 import { sortTemplateTasks } from "@/lib/day-templates/timeline";
 import { normalizeTimeLabel } from "@/lib/day-templates/time";
+import { getChildTimeBlockForTimeRange } from "@/lib/time/day-segments";
 import type {
   DayTemplateBlockSummary,
   SchoolPeriodSummary,
@@ -18,12 +26,24 @@ import type {
   TemplateWeekdayOverview,
   TemplateWithTasks,
 } from "@/lib/day-templates/types";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 interface FamilyContext {
   familyId: string;
+  useAdminClientForChildPin: boolean;
+}
+
+function shouldUseAdminClientForChildPin(
+  context: Awaited<ReturnType<typeof getCurrentProfile>>,
+): boolean {
+  return (
+    context.source === "child-pin" &&
+    context.role === "child" &&
+    Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+  );
 }
 
 async function getFamilyContext(): Promise<FamilyContext | null> {
@@ -32,7 +52,10 @@ async function getFamilyContext(): Promise<FamilyContext | null> {
     return null;
   }
 
-  return { familyId: context.familyId };
+  return {
+    familyId: context.familyId,
+    useAdminClientForChildPin: shouldUseAdminClientForChildPin(context),
+  };
 }
 
 type CategoryRow = Database["public"]["Tables"]["task_categories"]["Row"];
@@ -46,9 +69,16 @@ function mapCategoryRow(row: CategoryRow): TaskCategorySummary {
   return {
     id: row.id,
     familyId: row.family_id,
+    code: resolveCategoryCode({
+      code: row.code,
+      name: row.name,
+      iconKey: row.icon,
+      colorKey: row.color_key,
+      defaultItemKind: row.default_item_kind,
+    }),
     name: row.name,
-    icon: row.icon,
-    colorKey: row.color_key,
+    icon: parseCategoryIconKey(row.icon),
+    colorKey: parseCategoryColorKey(row.color_key),
     defaultItemKind: row.default_item_kind,
   };
 }
@@ -72,6 +102,9 @@ function mapBlockRow(row: DayTemplateBlockRow): DayTemplateBlockSummary {
     startTime: normalizeTimeLabel(row.start_time),
     endTime: normalizeTimeLabel(row.end_time),
     sortOrder: row.sort_order,
+    childTimeBlockId:
+      row.child_time_block_id ??
+      getChildTimeBlockForTimeRange(normalizeTimeLabel(row.start_time), normalizeTimeLabel(row.end_time)),
   };
 }
 
@@ -117,12 +150,17 @@ function mapTaskRow(
     assignedProfileRole: assignedProfile?.role ?? null,
     title: row.title,
     description: row.description,
+    instructionsHtml: row.instructions_html,
     startTime: normalizeTimeLabel(row.start_time),
     endTime: normalizeTimeLabel(row.end_time),
     sortOrder: row.sort_order,
     pointsBase: row.points_base,
     knowledgeCardId: row.knowledge_card_id,
     knowledgeCardTitle,
+    recommendedChildTimeBlockId:
+      row.recommended_child_time_block_id ??
+      getChildTimeBlockForTimeRange(normalizeTimeLabel(row.start_time), normalizeTimeLabel(row.end_time)),
+    scheduledDate: row.scheduled_date ?? null,
     category,
   };
 }
@@ -137,7 +175,9 @@ export async function getTaskCategoriesForCurrentFamily(): Promise<TaskCategoryS
     return listDemoCategories(family.familyId);
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = family.useAdminClientForChildPin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("task_categories")
     .select("*")
@@ -161,7 +201,9 @@ export async function getSchoolPeriodsForCurrentFamily(): Promise<SchoolPeriodSu
     return listDemoSchoolPeriods(family.familyId);
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = family.useAdminClientForChildPin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("school_periods")
     .select("*")
@@ -188,7 +230,9 @@ export async function getAllTemplatesForCurrentFamily(): Promise<TemplateSummary
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = family.useAdminClientForChildPin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("day_templates")
     .select("*")
@@ -220,7 +264,9 @@ export async function getTemplatesWithTasksForWeekday(weekday: number): Promise<
     }));
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = family.useAdminClientForChildPin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
   const { data: templatesData, error: templatesError } = await supabase
     .from("day_templates")
     .select("*")
@@ -338,7 +384,9 @@ export async function getTemplateByIdForCurrentFamily(templateId: string): Promi
     };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = family.useAdminClientForChildPin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
   const { data: template, error: templateError } = await supabase
     .from("day_templates")
     .select("*")
@@ -431,7 +479,9 @@ export async function getTemplateWeekOverviewForCurrentFamily(): Promise<Templat
       defaultTemplateIds.map((templateId) => [templateId, listDemoTemplateBlocks(family.familyId, templateId)]),
     );
   } else if (defaultTemplateIds.length > 0) {
-    const supabase = await createSupabaseServerClient();
+    const supabase = family.useAdminClientForChildPin
+      ? createSupabaseAdminClient()
+      : await createSupabaseServerClient();
     const { data } = await supabase
       .from("day_template_blocks")
       .select("*")

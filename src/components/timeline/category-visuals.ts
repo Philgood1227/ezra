@@ -1,10 +1,13 @@
+import { parseCategoryColorKey } from "@/lib/day-templates/constants";
+import type { CategoryColorKey } from "@/lib/day-templates/types";
+
 export interface CategoryVisual {
   border: string;
   softBackground: string;
   ring: string;
 }
 
-const CATEGORY_VISUALS: Record<string, CategoryVisual> = {
+const CATEGORY_VISUALS: Record<CategoryColorKey, CategoryVisual> = {
   "category-routine": {
     border: "border-category-routine",
     softBackground: "bg-category-routine/18",
@@ -48,6 +51,6 @@ const DEFAULT_VISUAL: CategoryVisual = {
   ring: "ring-brand-primary/35",
 };
 
-export function getCategoryVisual(colorKey: string): CategoryVisual {
-  return CATEGORY_VISUALS[colorKey] ?? DEFAULT_VISUAL;
+export function getCategoryVisual(colorKey: string | null | undefined): CategoryVisual {
+  return CATEGORY_VISUALS[parseCategoryColorKey(colorKey)] ?? DEFAULT_VISUAL;
 }

@@ -33,6 +33,10 @@ const templates: ChecklistTemplateSummary[] = [
     label: "Sac piscine",
     description: null,
     isDefault: true,
+    recurrenceRule: "none",
+    recurrenceDays: [],
+    recurrenceStartDate: null,
+    recurrenceEndDate: null,
     items: [
       { id: "item-1", templateId: "template-piscine", label: "Maillot", sortOrder: 0 },
       { id: "item-2", templateId: "template-piscine", label: "Serviette", sortOrder: 1 },
@@ -45,6 +49,10 @@ const templates: ChecklistTemplateSummary[] = [
     label: "Routine soir",
     description: null,
     isDefault: true,
+    recurrenceRule: "none",
+    recurrenceDays: [],
+    recurrenceStartDate: null,
+    recurrenceEndDate: null,
     items: [{ id: "item-3", templateId: "template-quotidien", label: "Cartable", sortOrder: 0 }],
   },
 ];

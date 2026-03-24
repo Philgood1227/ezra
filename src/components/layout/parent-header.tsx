@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -55,10 +55,10 @@ export function ParentHeader({
   isLoggingOut = false,
 }: ParentHeaderProps): React.JSX.Element {
   return (
-    <header className="sticky top-0 z-40 border-b border-border-subtle bg-bg-base/90 pt-safe backdrop-blur-md">
-      <div className="flex h-16 items-center justify-between gap-3 px-3 px-safe sm:px-4 lg:px-6">
-        <div className="min-w-0 space-y-0.5">
-          <div className="flex items-center gap-1.5">
+    <header className="sticky top-0 z-40 border-b border-border-subtle bg-bg-base/92 pt-safe backdrop-blur-md">
+      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-2 px-3 px-safe sm:px-4 lg:px-6">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
@@ -73,17 +73,17 @@ export function ParentHeader({
               variant="ghost"
               className="hidden md:inline-flex"
               onClick={onToggleSidebarCollapse}
-              aria-label={sidebarCollapsed ? "Déplier la navigation" : "Replier la navigation"}
+              aria-label={sidebarCollapsed ? "Deplier la navigation" : "Replier la navigation"}
             >
               <CollapseIcon collapsed={sidebarCollapsed} />
             </Button>
 
-            <nav aria-label="Fil d'ariane" className="hidden items-center gap-1 text-xs text-text-secondary sm:flex">
+            <nav aria-label="Fil d'ariane" className="hidden items-center gap-1 text-xs text-text-secondary lg:flex">
               {breadcrumb.map((item, index) => {
                 const isLast = index === breadcrumb.length - 1;
                 return (
                   <React.Fragment key={`${item.label}-${index}`}>
-                    {index > 0 ? <span aria-hidden="true">›</span> : null}
+                    {index > 0 ? <span aria-hidden="true">/</span> : null}
                     {isLast || !item.href ? (
                       <span className={cn(isLast ? "font-semibold text-text-primary" : "")}>{item.label}</span>
                     ) : (
@@ -99,14 +99,14 @@ export function ParentHeader({
               })}
             </nav>
           </div>
-          <p className="truncate font-display text-lg font-black text-text-primary sm:text-xl">{title}</p>
+          <p className="truncate font-display text-base font-black text-text-primary sm:text-lg">{title}</p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Button
             size="sm"
             variant="ghost"
-            className="hidden md:inline-flex"
+            className="hidden lg:inline-flex"
             onClick={() => window.open("/child", "_blank", "noopener,noreferrer")}
           >
             <ChildIcon />
@@ -114,14 +114,14 @@ export function ParentHeader({
           </Button>
           {actions}
           <ThemeToggle />
-          <div className="hidden items-center gap-2 rounded-radius-pill border border-border-default bg-bg-surface/80 px-2.5 py-1.5 shadow-card sm:flex">
+          <div className="hidden items-center gap-2 rounded-radius-pill border border-border-default bg-bg-surface/80 px-2.5 py-1.5 shadow-card xl:flex">
             <Avatar name={parentDisplayName} size="sm" />
             <span className="max-w-24 truncate text-xs font-semibold text-text-secondary lg:max-w-32">
               {parentDisplayName}
             </span>
           </div>
           <Button size="sm" variant="secondary" loading={isLoggingOut} onClick={onLogout}>
-            Déconnexion
+            Deconnexion
           </Button>
         </div>
       </div>

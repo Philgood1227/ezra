@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { CHILD_SESSION_COOKIE, DEV_PARENT_SESSION_COOKIE } from "@/lib/auth/constants";
 import { parseChildSessionToken } from "@/lib/auth/child-session";
 import { isDevParentSession } from "@/lib/auth/dev-session";
@@ -99,10 +100,6 @@ async function resolveChildSession(): Promise<ResolvedAuthContext | null> {
 }
 
 async function resolveDevParentCookie(): Promise<ResolvedAuthContext | null> {
-  if (isSupabaseEnabled()) {
-    return null;
-  }
-
   const cookieStore = await cookies();
   const cookieValue = cookieStore.get(DEV_PARENT_SESSION_COOKIE)?.value;
 
@@ -126,6 +123,149 @@ async function resolveDevParentCookie(): Promise<ResolvedAuthContext | null> {
   };
 }
 
+function inferPublicRoleFromPathname(pathname: string): "parent" | "child" | null {
+  if (pathname.startsWith("/child")) {
+    return "child";
+  }
+  if (pathname.startsWith("/parent-v2") || pathname.startsWith("/parent")) {
+    return "parent";
+  }
+  return null;
+}
+
+function pathFromHeaderValue(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("/")) {
+    return value;
+  }
+
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return null;
+  }
+}
+
+async function inferPublicRoleFromRequest(): Promise<"parent" | "child" | null> {
+  try {
+    const requestHeaders = await headers();
+    const candidates = [
+      requestHeaders.get("x-ezra-pathname"),
+      requestHeaders.get("next-url"),
+      requestHeaders.get("x-next-url"),
+      requestHeaders.get("x-invoke-path"),
+      requestHeaders.get("x-matched-path"),
+      requestHeaders.get("referer"),
+    ];
+
+    for (const candidate of candidates) {
+      const path = pathFromHeaderValue(candidate);
+      if (!path) {
+        continue;
+      }
+
+      const role = inferPublicRoleFromPathname(path);
+      if (role) {
+        return role;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function resolvePublicUrlProfile(): Promise<ResolvedAuthContext | null> {
+  const role = await inferPublicRoleFromRequest();
+  if (!role) {
+    return null;
+  }
+
+  if (!isSupabaseEnabled()) {
+    if (role === "child") {
+      return {
+        role: "child",
+        familyId: "dev-family-id",
+        profile: {
+          id: "dev-child-id",
+          family_id: "dev-family-id",
+          display_name: "Ezra",
+          role: "child",
+          avatar_url: null,
+          pin_hash: null,
+          created_at: new Date().toISOString(),
+        },
+        source: "child-pin",
+      };
+    }
+
+    return {
+      role: "parent",
+      familyId: "dev-family-id",
+      profile: {
+        id: "dev-parent-id",
+        family_id: "dev-family-id",
+        display_name: "Parent Demo",
+        role: "parent",
+        avatar_url: null,
+        pin_hash: null,
+        created_at: new Date().toISOString(),
+      },
+      source: "dev-parent-cookie",
+    };
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
+  const admin = createSupabaseAdminClient();
+
+  if (role === "child") {
+    const { data } = await admin
+      .from("profiles")
+      .select("*")
+      .eq("role", "child")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      role: "child",
+      profile: data,
+      familyId: data.family_id,
+      source: "child-pin",
+    };
+  }
+
+  const { data } = await admin
+    .from("profiles")
+    .select("*")
+    .in("role", ["parent", "viewer"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    role: data.role,
+    profile: data,
+    familyId: data.family_id,
+    source: "dev-parent-cookie",
+  };
+}
+
 export async function getCurrentProfile(): Promise<ResolvedAuthContext> {
   const supabaseContext = await resolveSupabaseProfile();
   if (supabaseContext) {
@@ -140,6 +280,11 @@ export async function getCurrentProfile(): Promise<ResolvedAuthContext> {
   const devParentContext = await resolveDevParentCookie();
   if (devParentContext) {
     return devParentContext;
+  }
+
+  const publicUrlContext = await resolvePublicUrlProfile();
+  if (publicUrlContext) {
+    return publicUrlContext;
   }
 
   return {

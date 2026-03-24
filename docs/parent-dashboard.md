@@ -78,6 +78,18 @@ Main computation lives in `src/lib/domain/dashboard.ts`.
 - assignment breakdown chips
 - weekly school diary entries count
 
+### 5) Priorites parent (action-first)
+
+- A card at the top now highlights 3 recommended actions for the current week.
+- Actions are derived from existing metrics (load, completion rate, diary volume, meal streaks).
+- Each action includes a direct CTA to the relevant parent module.
+- The card also exposes hub shortcuts:
+  - `Modules organisation` (`/parent/organization`)
+  - `Modules famille` (`/parent/family`)
+- Visual harmonization:
+  - uses DS premium styles to align parent CTA rhythm with child UX language.
+  - top summary panel now uses elevated child-like surface styling while preserving parent information density.
+
 ## Parent Usage Guidance
 
 Suggested weekly routine:
@@ -102,3 +114,20 @@ This keeps decisions concrete and family-local without overfitting on one signal
 - richer trend comparisons (week over week)
 - optional exported weekly recap
 - configurable load weighting by task category
+- confidence scoring for recommendation priority ordering
+
+## Revisions Module Entry
+
+- Parent navigation includes a Revisions section:
+- `/parent/revisions` for list and filtering.
+- `/parent/revisions/new` for manual draft creation.
+- `/parent/revisions/generate` for AI-assisted draft generation (`concept` and `procedure`).
+- `/parent/revisions/[cardId]/edit` for multi-type card editing with live child preview.
+
+## Revisions Resources Entry
+
+- Parent navigation now includes `Livres & fiches` at `/parent/resources/books`.
+- This module provides:
+- manual PDF upload and indexing status tracking.
+- generation of revision drafts from indexed manuals.
+- Generated cards continue through the existing revisions flow (`/parent/revisions` and `/parent/revisions/[cardId]/edit`).

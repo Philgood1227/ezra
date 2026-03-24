@@ -17,7 +17,7 @@ describe("assignation propagation", () => {
 
     const category = createDemoCategory(familyId, {
       name: "Routine",
-      icon: "??",
+      icon: "routine",
       colorKey: "category-routine",
     });
     const template = upsertDemoTemplate(familyId, {

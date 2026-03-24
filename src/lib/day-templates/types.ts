@@ -1,9 +1,42 @@
+export type CategoryColorKey =
+  | "category-routine"
+  | "category-ecole"
+  | "category-repas"
+  | "category-sport"
+  | "category-loisir"
+  | "category-calme"
+  | "category-sommeil";
+
+export type CategoryCode = "homework" | "revision" | "training" | "activity" | "routine" | "leisure";
+
+export type CategoryIconKey =
+  | "default"
+  | "school"
+  | "activity"
+  | "routine"
+  | "leisure"
+  | "social"
+  | "health"
+  | "homework"
+  | "meal"
+  | "sport"
+  | "calm"
+  | "sleep"
+  | "transport"
+  | "hygiene"
+  | "knowledge"
+  | "checklist"
+  | "star";
+
+export type TaskCategoryIconKey = CategoryIconKey;
+
 export interface TaskCategorySummary {
   id: string;
   familyId: string;
+  code?: CategoryCode | null;
   name: string;
-  icon: string;
-  colorKey: string;
+  icon: TaskCategoryIconKey;
+  colorKey: CategoryColorKey;
   defaultItemKind?: PlanActionableKind | null;
 }
 
@@ -14,6 +47,8 @@ export interface TemplateSummary {
   weekday: number;
   isDefault: boolean;
 }
+
+export type ChildTimeBlockId = "morning" | "noon" | "afternoon" | "home" | "evening";
 
 export type PlanActionableKind = "activity" | "mission" | "leisure";
 export type PlanItemKind = "context" | PlanActionableKind;
@@ -30,12 +65,15 @@ export interface TemplateTaskSummary {
   assignedProfileRole?: "parent" | "child" | "viewer" | null;
   title: string;
   description: string | null;
+  instructionsHtml?: string | null;
   startTime: string;
   endTime: string;
   sortOrder: number;
   pointsBase: number;
   knowledgeCardId?: string | null;
   knowledgeCardTitle?: string | null;
+  recommendedChildTimeBlockId?: ChildTimeBlockId | null;
+  scheduledDate?: string | null;
   category: TaskCategorySummary;
 }
 
@@ -49,6 +87,7 @@ export interface DayTemplateBlockSummary {
   startTime: string;
   endTime: string;
   sortOrder: number;
+  childTimeBlockId?: ChildTimeBlockId | null;
 }
 
 export type SchoolPeriodType = "vacances" | "jour_special";
@@ -104,6 +143,14 @@ export interface TaskInstanceSummary {
   isReadOnly?: boolean;
   source?: "template_task" | "movie_session";
   sourceRefId?: string | null;
+  recommendedChildTimeBlockId?: ChildTimeBlockId | null;
+  instructionsHtml?: string | null;
+  estimatedMinutes?: number | null;
+  helpLinks?: Array<{
+    id: string;
+    label: string;
+    href: string;
+  }> | null;
   category: TaskCategorySummary;
 }
 
@@ -157,8 +204,8 @@ export interface DayTimelineItemSummary {
   sourceRefId: string | null;
   category: {
     name: string;
-    icon: string;
-    colorKey: string;
+    icon: TaskCategoryIconKey;
+    colorKey: CategoryColorKey;
   };
 }
 
@@ -215,9 +262,10 @@ export interface TemplateWeekdayOverview {
 }
 
 export interface CategoryInput {
+  code?: CategoryCode | null;
   name: string;
-  icon: string;
-  colorKey: string;
+  icon: TaskCategoryIconKey;
+  colorKey: CategoryColorKey;
   defaultItemKind?: PlanActionableKind | null;
 }
 
@@ -234,10 +282,13 @@ export interface TemplateTaskInput {
   assignedProfileId?: string | null;
   title: string;
   description: string | null;
+  instructionsHtml?: string | null;
   startTime: string;
   endTime: string;
   pointsBase: number;
   knowledgeCardId?: string | null;
+  recommendedChildTimeBlockId?: ChildTimeBlockId | null;
+  scheduledDate?: string | null;
 }
 
 export interface DayTemplateBlockInput {
@@ -245,6 +296,7 @@ export interface DayTemplateBlockInput {
   label: string | null;
   startTime: string;
   endTime: string;
+  childTimeBlockId?: ChildTimeBlockId | null;
 }
 
 export interface SchoolPeriodInput {
@@ -591,7 +643,14 @@ export interface SchoolDiaryEntryInput {
   recurrenceUntilDate?: string | null;
 }
 
-export type ChecklistTemplateType = "piscine" | "sortie" | "evaluation" | "quotidien" | "autre";
+export type ChecklistTemplateType =
+  | "piscine"
+  | "sortie"
+  | "evaluation"
+  | "quotidien"
+  | "routine"
+  | "autre";
+export type ChecklistRecurrenceRule = "none" | "daily" | "weekdays" | "school_days" | "weekly_days";
 
 export interface ChecklistTemplateItemSummary {
   id: string;
@@ -607,6 +666,10 @@ export interface ChecklistTemplateSummary {
   label: string;
   description: string | null;
   isDefault: boolean;
+  recurrenceRule: ChecklistRecurrenceRule;
+  recurrenceDays: number[];
+  recurrenceStartDate: string | null;
+  recurrenceEndDate: string | null;
   items: ChecklistTemplateItemSummary[];
 }
 
@@ -615,6 +678,10 @@ export interface ChecklistTemplateInput {
   label: string;
   description: string | null;
   isDefault: boolean;
+  recurrenceRule: ChecklistRecurrenceRule;
+  recurrenceDays: number[];
+  recurrenceStartDate: string | null;
+  recurrenceEndDate: string | null;
 }
 
 export interface ChecklistTemplateItemInput {
@@ -634,6 +701,7 @@ export interface ChecklistInstanceSummary {
   familyId: string;
   childProfileId: string;
   diaryEntryId: string | null;
+  sourceTemplateId?: string | null;
   type: string;
   label: string;
   date: string;

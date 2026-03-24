@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ds";
 import { ParentHeader } from "@/components/layout/parent-header";
+import { ParentModuleSubnav } from "@/components/layout/parent-module-subnav";
+import { ParentQuickActionsDrawer } from "@/components/layout/parent-quick-actions-drawer";
 import { ParentSidebar } from "@/components/layout/parent-sidebar";
 import { PageTransition } from "@/components/motion";
 import { ParentOnboardingModal } from "@/components/onboarding/parent-onboarding-modal";
@@ -24,6 +27,21 @@ interface ParentShellProps {
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ezra-parent-sidebar-collapsed";
 
+function LightningIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+      <path
+        d="M13.4 2 6.6 12.2h4.8L10.6 22l6.8-10.2h-4.8L13.4 2Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
 export function ParentShell({
   children,
   initialBadges = EMPTY_PARENT_NAV_BADGES,
@@ -42,6 +60,7 @@ export function ParentShell({
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = React.useState(false);
 
   React.useEffect(() => {
     const persisted = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
@@ -63,6 +82,27 @@ export function ParentShell({
   React.useEffect(() => {
     setMobileSidebarOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    setQuickActionsOpen(false);
+  }, [pathname]);
+
+  React.useEffect(() => {
+    const routesToPrefetch = [
+      "/parent/dashboard",
+      "/parent/revisions",
+      "/parent/revisions/generate",
+      "/parent/resources/books",
+      "/parent/checklists",
+      "/parent/day-templates",
+      "/parent/weekly-tasks",
+      "/parent/fiches",
+    ];
+
+    routesToPrefetch.forEach((route) => {
+      router.prefetch(route);
+    });
+  }, [router]);
 
   const toggleSidebarCollapsed = React.useCallback(() => {
     setSidebarCollapsed((current) => {
@@ -119,12 +159,24 @@ export function ParentShell({
             title={title}
             breadcrumb={breadcrumb}
             parentDisplayName={parentDisplayName}
+            actions={
+              <Button
+                size="sm"
+                variant="secondary"
+                className="hidden md:inline-flex"
+                onClick={() => setQuickActionsOpen(true)}
+              >
+                <LightningIcon />
+                Actions rapides
+              </Button>
+            }
             onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
             onToggleSidebarCollapse={toggleSidebarCollapsed}
             sidebarCollapsed={sidebarCollapsed}
             onLogout={handleLogout}
             isLoggingOut={isLoggingOut}
           />
+          <ParentModuleSubnav pathname={pathname} />
           <main id="parent-main-content" className="min-w-0 flex-1 overflow-y-auto">
             <PageTransition>
               <div className="min-h-full bg-bg-base">{children}</div>
@@ -132,6 +184,11 @@ export function ParentShell({
           </main>
         </div>
       </div>
+      <ParentQuickActionsDrawer
+        open={quickActionsOpen}
+        pathname={pathname}
+        onClose={() => setQuickActionsOpen(false)}
+      />
       <ParentOnboardingModal
         open={showOnboarding}
         profileId={parentProfileId}

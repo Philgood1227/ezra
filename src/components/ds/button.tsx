@@ -12,8 +12,12 @@ const buttonVariants = cva(
       variant: {
         primary:
           "bg-gradient-to-br from-brand-primary to-brand-secondary text-text-inverse shadow-card hover:brightness-105",
+        premium:
+          "bg-gradient-to-r from-brand-500 via-brand-primary to-brand-secondary text-text-inverse shadow-elevated ring-1 ring-brand-200/55 hover:-translate-y-0.5 hover:brightness-105",
         secondary:
           "border border-border-default bg-bg-surface/80 text-text-primary shadow-card backdrop-blur-sm hover:bg-bg-surface-hover",
+        glass:
+          "border border-brand-100/65 bg-bg-surface/72 text-text-primary shadow-glass backdrop-blur-md hover:bg-bg-surface/88",
         tertiary:
           "border border-border-subtle bg-bg-elevated/85 text-text-primary shadow-card backdrop-blur-sm hover:bg-bg-surface-hover",
         ghost: "bg-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary",

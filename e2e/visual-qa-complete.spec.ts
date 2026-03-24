@@ -50,25 +50,25 @@ function setupDeterministicDemoData(): void {
 
   const schoolCategory = createDemoCategory(FAMILY_ID, {
     name: "Ecole",
-    icon: "📚",
+    icon: "school",
     colorKey: "category-ecole",
     defaultItemKind: "mission",
   });
   const activityCategory = createDemoCategory(FAMILY_ID, {
     name: "Activite physique",
-    icon: "⚽",
+    icon: "sport",
     colorKey: "category-sport",
     defaultItemKind: "activity",
   });
   const missionCategory = createDemoCategory(FAMILY_ID, {
     name: "Devoirs",
-    icon: "🧠",
+    icon: "homework",
     colorKey: "category-routine",
     defaultItemKind: "mission",
   });
   const leisureCategory = createDemoCategory(FAMILY_ID, {
     name: "Loisir",
-    icon: "🎬",
+    icon: "leisure",
     colorKey: "category-loisir",
     defaultItemKind: "leisure",
   });
@@ -293,3 +293,4 @@ test.describe("visual QA complete - child home and my-day", () => {
     });
   }
 });
+

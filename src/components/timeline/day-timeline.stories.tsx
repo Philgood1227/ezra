@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+﻿import type { Meta, StoryObj } from "@storybook/react";
 import { DayTimeline } from "@/components/timeline/day-timeline";
 import type { TaskInstanceSummary } from "@/lib/day-templates/types";
 
@@ -21,7 +21,7 @@ const sampleTasks: TaskInstanceSummary[] = [
       id: "cat-1",
       familyId: "family-1",
       name: "Routine",
-      icon: "🧩",
+      icon: "routine",
       colorKey: "category-routine",
     },
   },
@@ -43,7 +43,7 @@ const sampleTasks: TaskInstanceSummary[] = [
       id: "cat-2",
       familyId: "family-1",
       name: "Ecole",
-      icon: "📚",
+      icon: "school",
       colorKey: "category-ecole",
     },
   },
@@ -65,7 +65,7 @@ const sampleTasks: TaskInstanceSummary[] = [
       id: "cat-3",
       familyId: "family-1",
       name: "Repas",
-      icon: "🍽️",
+      icon: "meal",
       colorKey: "category-repas",
     },
   },
@@ -93,3 +93,4 @@ export const Soir: Story = {
     currentTime: new Date(2026, 1, 11, 22, 0, 0),
   },
 };
+

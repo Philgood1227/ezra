@@ -30,11 +30,25 @@ describe("Design System components", () => {
     expect(button).toHaveClass("from-brand-primary");
   });
 
+  it("rend un bouton premium pour harmonisation parent/enfant", () => {
+    render(<Button variant="premium">Continuer</Button>);
+    const button = screen.getByRole("button", { name: "Continuer" });
+    expect(button).toHaveClass("from-brand-500");
+    expect(button).toHaveClass("to-brand-secondary");
+  });
+
   it("rend une carte glassmorphism", () => {
     render(<Card>Contenu</Card>);
     const card = screen.getByText("Contenu");
     expect(card).toHaveClass("bg-bg-surface/80");
     expect(card).toHaveClass("backdrop-blur-sm");
+  });
+
+  it("rend une carte surface child", () => {
+    render(<Card surface="child">Panneau premium</Card>);
+    const card = screen.getByText("Panneau premium");
+    expect(card).toHaveClass("from-brand-50/55");
+    expect(card).toHaveClass("shadow-elevated");
   });
 
   it("rend un badge categorie", () => {

@@ -28,6 +28,46 @@ function getDayTemplateDetailLabel(pathname: string): string {
   return `Journee ${decodeSegment(trailing)}`;
 }
 
+function getWeeklyTaskDetailLabel(pathname: string): string {
+  const trailing = pathname.replace("/parent/weekly-tasks/", "").trim();
+
+  if (!trailing) {
+    return "Edition des taches";
+  }
+
+  if (UUID_SEGMENT_REGEX.test(trailing)) {
+    return "Edition des taches";
+  }
+
+  return `Taches ${decodeSegment(trailing)}`;
+}
+
+function getRevisionDetailLabel(pathname: string): string {
+  const trailing = pathname.replace("/parent/revisions/", "").trim();
+
+  if (!trailing) {
+    return "Détail fiche";
+  }
+
+  if (trailing === "new") {
+    return "Nouvelle fiche";
+  }
+
+  if (trailing === "generate") {
+    return "Générer (IA)";
+  }
+
+  if (trailing.endsWith("/edit")) {
+    return "Édition fiche";
+  }
+
+  if (UUID_SEGMENT_REGEX.test(trailing)) {
+    return "Détail fiche";
+  }
+
+  return `Fiche ${decodeSegment(trailing)}`;
+}
+
 export function getParentBreadcrumb(pathname: string): ParentBreadcrumbItem[] {
   if (pathname === "/parent/dashboard") {
     return [{ label: "Tableau de bord" }];
@@ -45,11 +85,31 @@ export function getParentBreadcrumb(pathname: string): ParentBreadcrumbItem[] {
     return [{ label: "Organisation" }, { label: "Journees types" }];
   }
 
+  if (pathname === "/parent/fiches") {
+    return [{ label: "Fiches" }];
+  }
+
+  if (pathname === "/parent/weekly-tasks") {
+    return [{ label: "Organisation" }, { label: "Taches hebdo" }];
+  }
+
+  if (pathname === "/parent/organization") {
+    return [{ label: "Organisation" }, { label: "Modules organisation" }];
+  }
+
   if (pathname.startsWith("/parent/day-templates/")) {
     return [
       { label: "Organisation", href: "/parent/day-templates" },
       { label: "Journees types", href: "/parent/day-templates" },
       { label: getDayTemplateDetailLabel(pathname) },
+    ];
+  }
+
+  if (pathname.startsWith("/parent/weekly-tasks/")) {
+    return [
+      { label: "Organisation", href: "/parent/weekly-tasks" },
+      { label: "Taches hebdo", href: "/parent/weekly-tasks" },
+      { label: getWeeklyTaskDetailLabel(pathname) },
     ];
   }
 
@@ -66,37 +126,76 @@ export function getParentBreadcrumb(pathname: string): ParentBreadcrumbItem[] {
   }
 
   if (pathname === "/parent/meals") {
-    return [{ label: "Organisation" }, { label: "Repas" }];
+    return [{ label: "Vie quotidienne" }, { label: "Repas" }];
   }
 
   if (pathname === "/parent/knowledge") {
-    return [{ label: "Organisation" }, { label: "Connaissances" }];
+    return [{ label: "Apprentissages" }, { label: "Connaissances" }];
+  }
+
+  if (pathname === "/parent/learning") {
+    return [{ label: "Apprentissages" }, { label: "Modules apprentissages" }];
+  }
+
+  if (pathname === "/parent/revisions") {
+    return [{ label: "Apprentissages" }, { label: "Bibliothèque" }];
+  }
+
+  if (pathname === "/parent/revisions/new") {
+    return [
+      { label: "Apprentissages", href: "/parent/learning" },
+      { label: "Bibliothèque", href: "/parent/revisions" },
+      { label: "Nouvelle fiche" },
+    ];
+  }
+
+  if (pathname === "/parent/revisions/generate") {
+    return [
+      { label: "Apprentissages", href: "/parent/learning" },
+      { label: "Générer (IA)" },
+    ];
+  }
+
+  if (pathname.startsWith("/parent/revisions/")) {
+    return [
+      { label: "Apprentissages", href: "/parent/learning" },
+      { label: "Bibliothèque", href: "/parent/revisions" },
+      { label: getRevisionDetailLabel(pathname) },
+    ];
+  }
+
+  if (pathname === "/parent/resources/books") {
+    return [{ label: "Apprentissages" }, { label: "Livres & fiches" }];
   }
 
   if (pathname.startsWith("/parent/knowledge/")) {
     const trailing = pathname.replace("/parent/knowledge/", "");
     const detailLabel = trailing ? `Matiere ${decodeSegment(trailing)}` : "Detail";
     return [
-      { label: "Organisation", href: "/parent/knowledge" },
+      { label: "Apprentissages", href: "/parent/knowledge" },
       { label: "Connaissances", href: "/parent/knowledge" },
       { label: detailLabel },
     ];
   }
 
   if (pathname === "/parent/achievements") {
-    return [{ label: "Vie familiale & Motivation" }, { label: "Succes & badges" }];
+    return [{ label: "Vie familiale & motivation" }, { label: "Succes & badges" }];
+  }
+
+  if (pathname === "/parent/family") {
+    return [{ label: "Vie familiale & motivation" }, { label: "Modules famille" }];
   }
 
   if (pathname === "/parent/rewards") {
-    return [{ label: "Vie familiale & Motivation" }, { label: "Recompenses" }];
+    return [{ label: "Vie familiale & motivation" }, { label: "Recompenses" }];
   }
 
   if (pathname === "/parent/gamification") {
-    return [{ label: "Vie familiale & Motivation" }, { label: "Gamification" }];
+    return [{ label: "Vie familiale & motivation" }, { label: "Gamification" }];
   }
 
   if (pathname === "/parent/cinema") {
-    return [{ label: "Vie familiale & Motivation" }, { label: "Cinema" }];
+    return [{ label: "Vie familiale & motivation" }, { label: "Cinema" }];
   }
 
   if (pathname === "/parent/settings") {

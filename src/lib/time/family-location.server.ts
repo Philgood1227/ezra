@@ -1,8 +1,6 @@
+import { headers } from "next/headers";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
-import {
-  DEFAULT_FAMILY_LOCATION_GENEVA,
-  type FamilyLocation,
-} from "@/lib/time/family-location";
+import { DEFAULT_FAMILY_LOCATION_GENEVA, type FamilyLocation } from "@/lib/time/family-location";
 
 async function readFamilyLocationSetting(familyId: string | null): Promise<FamilyLocation | null> {
   void familyId;
@@ -11,8 +9,50 @@ async function readFamilyLocationSetting(familyId: string | null): Promise<Famil
   return null;
 }
 
+function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readRequestTimeZone(): Promise<string | null> {
+  try {
+    const requestHeaders = await headers();
+    const headerTimeZone =
+      requestHeaders.get("x-vercel-ip-timezone") ?? requestHeaders.get("x-timezone");
+
+    if (!headerTimeZone) {
+      return null;
+    }
+
+    return isValidTimeZone(headerTimeZone) ? headerTimeZone : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getFamilyLocationForCurrentFamily(): Promise<FamilyLocation> {
-  const context = await getCurrentProfile();
-  const configuredLocation = await readFamilyLocationSetting(context.familyId);
-  return configuredLocation ?? DEFAULT_FAMILY_LOCATION_GENEVA;
+  return getFamilyLocationForFamilyId();
+}
+
+export async function getFamilyLocationForFamilyId(familyId?: string | null): Promise<FamilyLocation> {
+  const resolvedFamilyId =
+    typeof familyId === "undefined" ? (await getCurrentProfile()).familyId : familyId;
+  const configuredLocation = await readFamilyLocationSetting(resolvedFamilyId);
+  if (configuredLocation) {
+    return configuredLocation;
+  }
+
+  const requestTimeZone = await readRequestTimeZone();
+  if (!requestTimeZone) {
+    return DEFAULT_FAMILY_LOCATION_GENEVA;
+  }
+
+  return {
+    ...DEFAULT_FAMILY_LOCATION_GENEVA,
+    timezone: requestTimeZone,
+  };
 }

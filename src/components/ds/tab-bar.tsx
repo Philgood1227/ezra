@@ -49,6 +49,7 @@ interface TabBarItemProps {
   showBadgeDot?: boolean | undefined;
   onClick?: (() => void) | undefined;
   isActive: boolean;
+  isPending?: boolean | undefined;
 }
 
 function pathMatchesPrefix(pathname: string, prefix: string): boolean {
@@ -105,23 +106,39 @@ function TabBadge({
 
 export function TabBar({ items, className }: TabBarProps): React.JSX.Element {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   return (
     <nav
       aria-label="Navigation enfant"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border-default/70 bg-gradient-to-b from-bg-surface via-bg-surface to-bg-surface-hover/70 px-2 pb-safe pt-2.5 backdrop-blur-md sm:px-2.5 md:inset-x-auto md:left-1/2 md:w-[calc(100%-3rem)] md:max-w-[912px] md:-translate-x-1/2 md:rounded-t-[26px] md:border md:px-4 md:shadow-elevated",
+        "child-tabbar-shell fixed inset-x-0 bottom-0 z-40 border-t border-border-default/70 bg-gradient-to-b from-bg-surface via-bg-surface to-bg-surface-hover/70 px-2 pb-safe pt-2.5 backdrop-blur-md sm:px-2.5 md:inset-x-auto md:left-1/2 md:w-[calc(100%-3rem)] md:max-w-[912px] md:-translate-x-1/2 md:rounded-t-[26px] md:border md:px-4 md:shadow-elevated",
         className,
       )}
     >
       <ul
-        className="grid gap-1.5 sm:gap-2"
+        className="child-tabbar-grid grid gap-1.5 sm:gap-2"
         style={{
           gridTemplateColumns: `repeat(${Math.max(1, items.length)}, minmax(0, 1fr))`,
         }}
       >
         {items.map((item) => {
           const isActive = isItemActive(pathname, item);
+          const isPending = Boolean(item.href && pendingHref === item.href && !isActive);
+          const handleClick = (): void => {
+            if (item.href && !isActive) {
+              setPendingHref(item.href);
+              window.setTimeout(() => {
+                setPendingHref((current) => (current === item.href ? null : current));
+              }, 2500);
+            }
+
+            item.onClick?.();
+          };
           const itemProps = {
             ...(item.href ? { href: item.href } : {}),
             ...(item.icon ? { icon: item.icon } : {}),
@@ -129,7 +146,8 @@ export function TabBar({ items, className }: TabBarProps): React.JSX.Element {
             ...(item.shortLabel ? { shortLabel: item.shortLabel } : {}),
             ...(typeof item.badgeCount === "number" ? { badgeCount: item.badgeCount } : {}),
             ...(item.showBadgeDot ? { showBadgeDot: item.showBadgeDot } : {}),
-            ...(item.onClick ? { onClick: item.onClick } : {}),
+            onClick: handleClick,
+            ...(isPending ? { isPending } : {}),
           };
 
           return (
@@ -153,12 +171,14 @@ export function TabBarItem({
   showBadgeDot,
   onClick,
   isActive,
+  isPending = false,
 }: TabBarItemProps): React.JSX.Element {
   const classes = cn(
-    "relative flex h-[68px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] border px-1 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary max-[360px]:h-[66px] max-[360px]:px-0.5 sm:h-[70px]",
+    "child-tabbar-item relative flex h-[68px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] border px-1 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary max-[360px]:h-[66px] max-[360px]:px-0.5 sm:h-[70px]",
     isActive
       ? "border-brand-primary/25 bg-brand-primary/12 text-brand-primary shadow-card"
       : "border-transparent text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary",
+    isPending ? "opacity-85" : "",
   );
 
   const itemIcon = isActive ? activeIcon ?? icon ?? <DefaultTabIcon active /> : icon ?? <DefaultTabIcon active={false} />;
@@ -175,15 +195,23 @@ export function TabBarItem({
       </span>
       <span
         aria-hidden="true"
+        data-slot="tab-active-indicator"
         className={cn(
           "absolute bottom-1 h-1.5 w-6 rounded-radius-pill bg-brand-primary transition-all duration-200",
           isActive ? "opacity-100" : "opacity-0",
         )}
       />
-      <TabBadge
-        {...(typeof badgeCount === "number" ? { badgeCount } : {})}
-        {...(typeof showBadgeDot === "boolean" ? { showBadgeDot } : {})}
-      />
+      {isPending ? (
+        <span
+          className="absolute right-2 top-2 inline-flex size-3.5 animate-spin rounded-full border-2 border-brand-primary/30 border-t-brand-primary"
+          aria-label="Navigation en cours"
+        />
+      ) : (
+        <TabBadge
+          {...(typeof badgeCount === "number" ? { badgeCount } : {})}
+          {...(typeof showBadgeDot === "boolean" ? { showBadgeDot } : {})}
+        />
+      )}
     </>
   );
 
@@ -194,7 +222,9 @@ export function TabBarItem({
           href={href}
           className={classes}
           {...(onClick ? { onClick: () => onClick() } : {})}
+          data-active={isActive ? "true" : "false"}
           aria-current={isActive ? "page" : undefined}
+          aria-busy={isPending || undefined}
         >
           {content}
         </Link>
@@ -204,7 +234,13 @@ export function TabBarItem({
 
   return (
     <ScaleOnTap className="block">
-      <button type="button" className={classes} onClick={onClick} aria-pressed={isActive}>
+      <button
+        type="button"
+        className={classes}
+        onClick={onClick}
+        aria-pressed={isActive}
+        data-active={isActive ? "true" : "false"}
+      >
         {content}
       </button>
     </ScaleOnTap>

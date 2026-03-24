@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChildShell } from "@/components/layout/child-shell";
 
@@ -22,63 +22,71 @@ describe("ChildShell navigation", () => {
     mockedPrefetch.mockClear();
   });
 
-  it("affiche des onglets lisibles avec icones et badge checklists", () => {
+  it("n'affiche plus de navigation basse", () => {
     render(
       <ChildShell checklistBadgeCount={3}>
         <div>Contenu enfant</div>
       </ChildShell>,
     );
 
-    const homeLink = screen.getByRole("link", { name: /Accueil/i });
-    const myDayLink = screen.getByRole("link", { name: /Ma journ\u00E9e/i });
-    const checklistsLink = screen.getByRole("link", { name: /^Checklists/ });
-    const fichesLink = screen.getByRole("link", { name: /Fiches/i });
-
-    expect(homeLink).toBeInTheDocument();
-    expect(myDayLink).toBeInTheDocument();
-    expect(checklistsLink).toBeInTheDocument();
-    expect(fichesLink).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Plus/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("3 notifications non lues")).toBeInTheDocument();
-
-    expect(homeLink).toHaveClass("text-sm");
-    expect(myDayLink).toHaveClass("text-sm");
-
-    expect(homeLink.querySelector('[data-slot="tab-icon"] svg')).not.toBeNull();
-    expect(myDayLink.querySelector('[data-slot="tab-icon"] svg')).not.toBeNull();
-    expect(checklistsLink.querySelector('[data-slot="tab-icon"] svg')).not.toBeNull();
-    expect(fichesLink.querySelector('[data-slot="tab-icon"] svg')).not.toBeNull();
+    expect(screen.queryByRole("navigation", { name: /Navigation enfant/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Aujourd'hui/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Check-lists/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Succes/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Outils/i })).not.toBeInTheDocument();
   });
 
-  it("met en avant l'onglet actif", () => {
-    const { rerender } = render(
-      <ChildShell>
-        <div>Contenu enfant</div>
-      </ChildShell>,
-    );
-
-    expect(screen.getByRole("link", { name: /Accueil/i })).toHaveAttribute("aria-current", "page");
-
-    mockedPathname = "/child/my-day";
-    rerender(
-      <ChildShell>
-        <div>Contenu enfant</div>
-      </ChildShell>,
-    );
-    expect(screen.getByRole("link", { name: /Ma journ\u00E9e/i })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("ouvre le menu plus et affiche les destinations", () => {
+  it("prefetch les destinations principales de la navigation simplifiee", () => {
     render(
       <ChildShell>
         <div>Contenu enfant</div>
       </ChildShell>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Plus/i }));
-    expect(screen.getByRole("link", { name: /Succ\u00E8s/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Cin\u00E9ma/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /\u00C9motions/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Repas/i })).toBeInTheDocument();
+    expect(mockedPrefetch).toHaveBeenCalledWith("/child/checklists");
+    expect(mockedPrefetch).toHaveBeenCalledWith("/child/achievements");
+    expect(mockedPrefetch).toHaveBeenCalledWith("/child/tools");
+  });
+
+  it("utilise une largeur full-bleed sur la route /child", () => {
+    const { container } = render(
+      <ChildShell>
+        <div>Contenu enfant</div>
+      </ChildShell>,
+    );
+
+    const shell = container.firstElementChild;
+    expect(shell).not.toBeNull();
+    expect(shell?.className).toContain("px-[var(--page-x)]");
+    expect(shell?.className).not.toContain("max-w-[1320px]");
+  });
+
+  it("conserve une largeur contrainee sur les autres routes enfant", () => {
+    mockedPathname = "/child/checklists";
+
+    const { container } = render(
+      <ChildShell>
+        <div>Contenu enfant</div>
+      </ChildShell>,
+    );
+
+    const shell = container.firstElementChild;
+    expect(shell).not.toBeNull();
+    expect(shell?.className).toContain("max-w-[1080px]");
+  });
+
+  it("aligne la route revision sur le gabarit home et masque Reglages", () => {
+    mockedPathname = "/child/revisions/revision-card-1";
+
+    const { container } = render(
+      <ChildShell>
+        <div>Contenu revision</div>
+      </ChildShell>,
+    );
+
+    const shell = container.firstElementChild;
+    expect(shell).not.toBeNull();
+    expect(shell?.className).not.toContain("max-w-[1080px]");
+    expect(screen.queryByRole("button", { name: /Reglages|R\u00E9glages/i })).not.toBeInTheDocument();
   });
 });

@@ -20,6 +20,10 @@ export function canTransitionTaskStatus(
     return true;
   }
 
+  if (currentStatus === "en_cours" && nextStatus === "a_faire") {
+    return true;
+  }
+
   if (currentStatus === "en_cours" && nextStatus === "termine") {
     return true;
   }

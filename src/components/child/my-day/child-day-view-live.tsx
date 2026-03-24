@@ -1,25 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ClockIcon, DayPlannerIcon } from "@/components/child/icons/child-premium-icons";
-import { Badge, Button, Card, CardContent, EmptyState, Skeleton } from "@/components/ds";
+import {
+  ArrowRightIcon,
+  ClockIcon,
+  DayPlannerIcon,
+} from "@/components/child/icons/child-premium-icons";
+import { ActiveTaskCard } from "@/components/child/my-day/active-task-card";
+import { FocusView } from "@/components/child/focus/focus-view";
+import { Badge, Button, Card, CardContent, EmptyState, Modal, Skeleton } from "@/components/ds";
 import { useToast } from "@/components/ds/toast";
-import { FadeIn } from "@/components/motion";
-import { DailyProgressBar } from "@/components/timeline/daily-progress-bar";
-import { DayTimeline } from "@/components/timeline/day-timeline";
 import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { computeDayBalanceFromTimelineItems } from "@/lib/day-templates/balance";
+import { canOpenFocusForTask } from "@/lib/day-templates/focus";
 import {
   buildUnifiedTimelineItems,
   filterOutSchoolContextMirrorTasks,
   findCurrentActionItem,
-  findCurrentContextItem,
-  findNextTimelineItem,
 } from "@/lib/day-templates/plan-items";
-import { getCurrentAndNextTasks, getTaskPhase, sortTemplateTasks } from "@/lib/day-templates/timeline";
-import { getCurrentMinutes } from "@/lib/day-templates/time";
+import {
+  getCurrentAndNextTasks,
+  getTaskPhase,
+  sortTemplateTasks,
+} from "@/lib/day-templates/timeline";
+import { getCurrentMinutes, timeToMinutes } from "@/lib/day-templates/time";
 import type {
   DayBalanceSummary,
   DayContextSummary,
@@ -30,7 +35,6 @@ import type {
   TaskInstanceSummary,
 } from "@/lib/day-templates/types";
 import { useCurrentTime } from "@/lib/hooks/useCurrentTime";
-import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/utils/haptic";
 import { isOnline } from "@/lib/utils/network";
 import { playSound } from "@/lib/utils/sounds";
@@ -53,13 +57,6 @@ interface ChildDayViewLiveProps {
   dayBalance?: DayBalanceSummary;
 }
 
-interface PrimaryAction {
-  label: string;
-  status: TaskInstanceStatus;
-}
-
-type MobileViewMode = "guided" | "timeline";
-
 const EMPTY_INSTANCES: TaskInstanceSummary[] = [];
 const EMPTY_TEMPLATE_BLOCKS: DayTemplateBlockSummary[] = [];
 const EMPTY_REWARD_TIERS: RewardTierSummary[] = [];
@@ -72,14 +69,6 @@ const EMPTY_DAY_BALANCE: DayBalanceSummary = {
   comparisonLabel: "presque_pareil",
 };
 
-function getFirstName(value: string | undefined): string {
-  if (!value) {
-    return "Ezra";
-  }
-
-  return value.trim().split(/\s+/)[0] ?? "Ezra";
-}
-
 function getMomentLabel(moment: DayContextSummary["currentMoment"] | undefined): string {
   if (moment === "apres-midi") {
     return "Apres-midi";
@@ -90,6 +79,40 @@ function getMomentLabel(moment: DayContextSummary["currentMoment"] | undefined):
   }
 
   return "Matin";
+}
+
+function getStatusLabel(status: TaskInstanceStatus): string {
+  if (status === "en_cours") {
+    return "En cours";
+  }
+
+  if (status === "termine") {
+    return "Termine";
+  }
+
+  if (status === "en_retard") {
+    return "En retard";
+  }
+
+  return "A faire";
+}
+
+function getStatusBadgeVariant(
+  status: TaskInstanceStatus,
+): "warning" | "success" | "neutral" | "info" {
+  if (status === "termine") {
+    return "success";
+  }
+
+  if (status === "en_retard") {
+    return "warning";
+  }
+
+  if (status === "ignore") {
+    return "neutral";
+  }
+
+  return "info";
 }
 
 function computePointsTarget(input: {
@@ -107,475 +130,144 @@ function computePointsTarget(input: {
   return Math.max(1, taskTarget, nextReward ?? 0);
 }
 
-function getEffectiveStatus(task: TaskInstanceSummary, currentMinutes: number): TaskInstanceStatus {
-  const phase = getTaskPhase(task, currentMinutes);
-  const isLate = task.status === "a_faire" && phase.isPast && !phase.isCurrent;
-
-  return isLate ? "en_retard" : task.status;
-}
-
-function getStatusLabel(status: TaskInstanceStatus): string {
-  if (status === "en_cours") {
-    return "En cours";
-  }
-
-  if (status === "termine") {
-    return "Termine";
-  }
-
-  if (status === "en_retard") {
-    return "En retard";
-  }
-
-  if (status === "ignore") {
-    return "Ignore";
-  }
-
-  return "A faire";
-}
-
-function getPrimaryAction(status: TaskInstanceStatus): PrimaryAction | null {
-  if (status === "en_cours") {
-    return { label: "Valider", status: "termine" };
-  }
-
-  if (status === "a_faire" || status === "en_retard") {
-    return { label: "Commencer", status: "en_cours" };
-  }
-
-  return null;
-}
-
-function getStatusBadgeVariant(status: TaskInstanceStatus): "warning" | "success" | "neutral" | "info" {
-  if (status === "termine") {
-    return "success";
-  }
-
-  if (status === "en_retard") {
-    return "warning";
-  }
-
-  if (status === "ignore") {
-    return "neutral";
-  }
-
-  return "info";
-}
-
-type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>["variant"]>;
-
-function getTimelineKindLabel(item: DayTimelineItemSummary): string {
-  if (item.kind === "context") {
-    return "Repere";
-  }
-
-  if (item.kind === "activity") {
-    return "Activite";
-  }
-
-  if (item.kind === "leisure") {
-    return "Loisir";
-  }
-
-  return "Mission";
-}
-
-function getTimelineKindBadgeVariant(item: DayTimelineItemSummary): BadgeVariant {
-  if (item.kind === "context") {
-    if (item.subkind === "school") {
-      return "ecole";
-    }
-    if (item.subkind === "club") {
-      return "sport";
-    }
-    return "neutral";
-  }
-
-  if (item.kind === "activity") {
-    return "sport";
-  }
-
-  if (item.kind === "leisure") {
-    return "loisir";
-  }
-
-  return "info";
-}
-
-function getNextStepMessage(input: {
-  nextTimelineItem: DayTimelineItemSummary | null;
-  fallbackNextTask: TaskInstanceSummary | null;
-}): string {
-  const nextTimelineItem = input.nextTimelineItem;
-  if (nextTimelineItem) {
-    if (nextTimelineItem.kind === "context") {
-      return `${nextTimelineItem.title} a ${nextTimelineItem.startTime}`;
-    }
-    return `Prochaine tache a ${nextTimelineItem.startTime}`;
-  }
-
-  if (input.fallbackNextTask?.startTime) {
-    return `Prochaine tache a ${input.fallbackNextTask.startTime}`;
-  }
-
-  return "Rien pour le moment";
-}
-
-function getContextNowHeadline(contextItem: DayTimelineItemSummary | null): string {
-  if (!contextItem || contextItem.kind !== "context") {
-    return "Pause";
-  }
-
-  if (contextItem.subkind === "home") {
-    return "Tu es a la maison";
-  }
-
-  if (contextItem.subkind === "transport") {
-    return "Tu es en trajet";
-  }
-
-  if (contextItem.subkind === "club") {
-    return "Tu es au club";
-  }
-
-  if (contextItem.subkind === "daycare") {
-    return "Tu es a la garderie";
-  }
-
-  return contextItem.title || "Contexte en cours";
-}
-
-function getDayBalanceSummaryLabel(balance: DayBalanceSummary): string {
-  const delta = balance.missionLeisureDeltaUnits15;
-  if (delta === 0) {
-    return "Missions et loisirs: meme nombre d'unites aujourd'hui.";
-  }
-
-  if (delta > 0) {
-    return `Missions: ${delta} unite${delta > 1 ? "s" : ""} de plus que les loisirs.`;
-  }
-
-  const leisureDelta = Math.abs(delta);
-  return `Loisirs: ${leisureDelta} unite${leisureDelta > 1 ? "s" : ""} de plus que les missions.`;
-}
-
-function getDayBalanceBucketTone(kind: DayBalanceSummary["buckets"][number]["kind"]): string {
-  if (kind === "school") {
-    return "bg-category-ecole";
-  }
-
-  if (kind === "activities") {
-    return "bg-category-sport";
-  }
-
-  if (kind === "leisure") {
-    return "bg-category-loisir";
-  }
-
-  return "bg-brand-primary";
-}
-
-function TimelineLoadingSkeleton(): React.JSX.Element {
+function TimelinePreviewSkeleton(): React.JSX.Element {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-14 w-full rounded-radius-card" />
-      <Skeleton className="h-12 w-full rounded-radius-card" />
-      <div className="rounded-radius-card border border-border-subtle bg-bg-surface/60 p-3 shadow-card backdrop-blur-sm">
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="flex items-center gap-3 rounded-radius-button border border-border-subtle p-3">
-              <Skeleton className="size-10" circle />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/3" />
-              </div>
-              <Skeleton className="h-touch-md w-24" />
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-4">
+      <Skeleton className="h-28 w-full rounded-[20px]" />
+      <Skeleton className="h-44 w-full rounded-[20px]" />
+      <Skeleton className="h-44 w-full rounded-[20px]" />
+      <Skeleton className="h-14 w-full rounded-radius-button" />
     </div>
   );
 }
 
-function MobileModeToggle({
-  mode,
-  onChange,
+function FocusStrip({
+  onOpenFocus,
+  disabled,
 }: {
-  mode: MobileViewMode;
-  onChange: (mode: MobileViewMode) => void;
+  onOpenFocus: () => void;
+  disabled: boolean;
 }): React.JSX.Element {
   return (
-    <div className="inline-flex w-full rounded-radius-button border border-border-default bg-bg-surface p-1 shadow-card">
-      <button
-        type="button"
-        className={cn(
-          "h-touch-sm flex-1 rounded-radius-button text-sm font-semibold transition-colors",
-          mode === "guided" ? "bg-brand-primary/12 text-brand-primary" : "text-text-secondary hover:text-text-primary",
-        )}
-        onClick={() => onChange("guided")}
-      >
-        Guidee
-      </button>
-      <button
-        type="button"
-        className={cn(
-          "h-touch-sm flex-1 rounded-radius-button text-sm font-semibold transition-colors",
-          mode === "timeline" ? "bg-brand-primary/12 text-brand-primary" : "text-text-secondary hover:text-text-primary",
-        )}
-        onClick={() => onChange("timeline")}
-      >
-        Timeline
-      </button>
-    </div>
-  );
-}
-
-function CurrentFocusCard({
-  currentTask,
-  nextTask,
-  currentContextItem,
-  nextTimelineItem,
-  dayContext,
-  currentMinutes,
-  pendingInstanceId,
-  onStatusChange,
-  onFocusMode,
-}: {
-  currentTask: TaskInstanceSummary | null;
-  nextTask: TaskInstanceSummary | null;
-  currentContextItem: DayTimelineItemSummary | null;
-  nextTimelineItem: DayTimelineItemSummary | null;
-  dayContext: DayContextSummary | undefined;
-  currentMinutes: number;
-  pendingInstanceId: string | null;
-  onStatusChange: (instanceId: string, newStatus: TaskInstanceStatus) => void;
-  onFocusMode: (instanceId: string) => void;
-}): React.JSX.Element {
-  const showSchoolMessage =
-    Boolean(dayContext?.isInSchoolBlock) ||
-    Boolean(currentContextItem && currentContextItem.kind === "context" && currentContextItem.subkind === "school");
-  const effectiveTask = showSchoolMessage ? null : currentTask;
-  const effectiveStatus = effectiveTask ? getEffectiveStatus(effectiveTask, currentMinutes) : null;
-  const primaryAction = effectiveStatus ? getPrimaryAction(effectiveStatus) : null;
-  const isPending = Boolean(effectiveTask && pendingInstanceId === effectiveTask.id);
-  const contextNowItem =
-    !showSchoolMessage && !effectiveTask && currentContextItem?.kind === "context" ? currentContextItem : null;
-  const schoolEndTime =
-    currentContextItem && currentContextItem.kind === "context" && currentContextItem.subkind === "school"
-      ? currentContextItem.endTime
-      : dayContext?.activeSchoolBlockEndTime;
-  const nextStepMessage = getNextStepMessage({
-    nextTimelineItem,
-    fallbackNextTask: nextTask,
-  });
-
-  return (
-    <Card className="overflow-hidden border-brand-primary/26 bg-gradient-to-br from-brand-50/28 via-bg-surface to-accent-50/22 shadow-elevated">
-      <CardContent className="space-y-3 p-4 md:p-3.5 xl:p-4">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex size-8 items-center justify-center rounded-radius-pill border border-brand-primary/28 bg-brand-primary/10 text-brand-primary">
-            <ClockIcon className="size-4" />
+    <Card className="rounded-[20px] border border-brand-primary/20 bg-brand-50/55 p-0 shadow-card">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-lg font-bold tracking-[0.01em] text-text-primary">Focus 20 / 5</p>
+            <p className="reading text-base leading-relaxed text-text-secondary">
+              Active ton pomodoro quand tu veux, sans urgence.
+            </p>
+          </div>
+          <span
+            aria-hidden="true"
+            className="relative inline-flex size-11 items-center justify-center rounded-radius-pill border border-brand-primary/20 bg-bg-surface text-brand-primary"
+          >
+            <ClockIcon className="size-5" />
+            <span className="absolute -inset-1 animate-pulse rounded-radius-pill border border-brand-primary/15" />
           </span>
-          <h2 className="font-display text-2xl font-black tracking-tight text-text-primary md:text-xl xl:text-2xl">
-            Maintenant
+        </div>
+        <Button
+          size="lg"
+          variant="secondary"
+          className="w-full text-[17px] font-semibold"
+          onClick={onOpenFocus}
+          disabled={disabled}
+        >
+          Focus
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NextMomentsCard({ items }: { items: DayTimelineItemSummary[] }): React.JSX.Element {
+  return (
+    <Card className="rounded-[20px] border-border-default bg-bg-surface shadow-card">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-display text-2xl font-bold tracking-[0.01em] text-text-primary">
+            A suivre
           </h2>
+          <Badge variant="neutral">1 - 3</Badge>
         </div>
-
-        {showSchoolMessage ? (
-          <div className="space-y-1">
-            <p className="text-xl font-black leading-snug text-text-primary">Tu es a l&apos;ecole</p>
-            <p className="text-base font-medium text-text-secondary">
-              {schoolEndTime
-                ? `Jusqu'a ${schoolEndTime}`
-                : "Pendant ce bloc"}
-            </p>
-          </div>
-        ) : contextNowItem ? (
-          <div className="space-y-1">
-            <p className="text-xl font-black leading-snug text-text-primary">{getContextNowHeadline(contextNowItem)}</p>
-            <p className="text-base font-medium text-text-secondary">Jusqu&apos;a {contextNowItem.endTime}</p>
-          </div>
-        ) : effectiveTask ? (
-          <div className="space-y-1.5">
-            <Badge variant={getStatusBadgeVariant(effectiveStatus ?? "a_faire")}>{getStatusLabel(effectiveStatus ?? "a_faire")}</Badge>
-            <p className="text-xl font-black leading-snug text-text-primary md:text-lg xl:text-xl">{effectiveTask.title}</p>
-            <p className="text-base font-medium text-text-secondary">
-              {effectiveTask.startTime} - {effectiveTask.endTime}
-            </p>
-          </div>
+        {items.length > 0 ? (
+          <ul className="space-y-2.5">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className="rounded-radius-button border border-border-subtle bg-bg-surface px-3 py-2.5"
+              >
+                <p className="text-[17px] font-semibold tracking-[0.01em] text-text-primary">
+                  {item.title}
+                </p>
+                <p className="text-base leading-relaxed text-text-secondary">
+                  {item.startTime} - {item.endTime}
+                </p>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <div className="space-y-1">
-            <p className="text-xl font-black leading-snug text-text-primary">Pause</p>
-            <p className="text-base font-medium text-text-secondary">{nextStepMessage}</p>
-          </div>
+          <p className="reading text-base leading-relaxed text-text-secondary">
+            Rien d&apos;urgent ensuite. Tu peux avancer a ton rythme.
+          </p>
         )}
-
-        {effectiveTask && primaryAction ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              size="lg"
-              variant={primaryAction.status === "termine" ? "primary" : "secondary"}
-              loading={isPending}
-              disabled={isPending}
-              onClick={() => onStatusChange(effectiveTask.id, primaryAction.status)}
-            >
-              {primaryAction.label}
-            </Button>
-            <button
-              type="button"
-              className="text-sm font-semibold text-brand-primary underline-offset-4 hover:underline"
-              onClick={() => onFocusMode(effectiveTask.id)}
-            >
-              Focus
-            </button>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function NextTaskCard({
-  nextTask,
-  nextTimelineItem,
+function LaterMomentsCard({
+  items,
+  onOpenTimeline,
 }: {
-  nextTask: TaskInstanceSummary | null;
-  nextTimelineItem: DayTimelineItemSummary | null;
+  items: TaskInstanceSummary[];
+  onOpenTimeline: () => void;
 }): React.JSX.Element {
-  const itemLabel = nextTimelineItem ? getTimelineKindLabel(nextTimelineItem) : null;
-  const itemVariant = nextTimelineItem ? getTimelineKindBadgeVariant(nextTimelineItem) : null;
-  const title = nextTimelineItem?.title ?? nextTask?.title ?? "Rien apres";
-  const details = nextTimelineItem
-    ? `${nextTimelineItem.startTime} - ${nextTimelineItem.endTime}`
-    : nextTask
-      ? `Debut ${nextTask.startTime}`
-      : "Pour aujourd'hui";
-
   return (
-    <Card className="border-border-default bg-bg-surface/95 shadow-card">
-      <CardContent className="space-y-2 p-4 md:p-3.5 xl:p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-black uppercase tracking-wide text-text-secondary">Ensuite</h3>
-          {itemLabel && itemVariant ? <Badge variant={itemVariant}>{itemLabel}</Badge> : null}
+    <Card className="rounded-[20px] border-border-default bg-bg-surface shadow-card">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-display text-2xl font-bold tracking-[0.01em] text-text-primary">
+            Plus tard
+          </h2>
+          <Badge variant="neutral">Compact</Badge>
         </div>
-        {nextTimelineItem || nextTask ? (
-          <>
-            <p className="text-lg font-black leading-snug text-text-primary md:text-base xl:text-lg">{title}</p>
-            <p className="text-base font-medium text-text-secondary md:text-sm xl:text-base">{details}</p>
-          </>
-        ) : (
-          <>
-            <p className="text-lg font-black leading-snug text-text-primary md:text-base xl:text-lg">Rien apres</p>
-            <p className="text-base font-medium text-text-secondary md:text-sm xl:text-base">
-              Pour aujourd&apos;hui
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function DayBalanceUnitsCard({ dayBalance }: { dayBalance: DayBalanceSummary }): React.JSX.Element {
-  const totalUnits = dayBalance.buckets.reduce((sum, bucket) => sum + bucket.units15Planned, 0);
-
-  return (
-    <Card className="border-border-default bg-bg-surface/95 shadow-card">
-      <CardContent className="space-y-3 p-4 md:p-3.5 xl:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-black leading-snug text-text-primary md:text-base xl:text-lg">Repere du temps</h2>
-          <Badge variant="neutral">1 unite = {dayBalance.unitMinutes} min</Badge>
-        </div>
-
-        {dayBalance.buckets.length === 0 || totalUnits === 0 ? (
-          <p className="text-sm font-medium text-text-secondary">Pas encore de durees planifiees aujourd&apos;hui.</p>
-        ) : (
-          <div className="space-y-2.5">
-            {dayBalance.buckets.map((bucket) => {
-              const widthPercent =
-                bucket.units15Planned > 0 ? Math.max(4, Math.round((bucket.units15Planned / totalUnits) * 100)) : 0;
-              const toneClassName = getDayBalanceBucketTone(bucket.kind);
-              return (
-                <div key={bucket.kind} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-text-primary">{bucket.label}</p>
-                    <p className="text-sm font-medium text-text-secondary">
-                      {bucket.units15Planned} unite{bucket.units15Planned > 1 ? "s" : ""}
+        {items.length > 0 ? (
+          <ul className="space-y-2.5">
+            {items.slice(0, 3).map((task) => (
+              <li
+                key={task.id}
+                className="rounded-radius-button border border-border-subtle bg-bg-surface px-3 py-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-[17px] font-semibold tracking-[0.01em] text-text-primary">
+                      {task.title}
+                    </p>
+                    <p className="text-base leading-relaxed text-text-secondary">
+                      {task.startTime} - {task.endTime}
                     </p>
                   </div>
-                  <div className="h-2 rounded-radius-pill bg-border-subtle/70">
-                    <div
-                      className={cn("h-2 rounded-radius-pill", toneClassName)}
-                      style={{ width: `${widthPercent}%` }}
-                      aria-hidden="true"
-                    />
-                  </div>
+                  <Badge variant={getStatusBadgeVariant(task.status)}>
+                    {getStatusLabel(task.status)}
+                  </Badge>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        <p className="text-sm font-medium text-text-secondary">{getDayBalanceSummaryLabel(dayBalance)}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LaterTasksCard({
-  tasks,
-  currentMinutes,
-}: {
-  tasks: TaskInstanceSummary[];
-  currentMinutes: number;
-}): React.JSX.Element {
-  return (
-    <Card className="border-border-default bg-bg-surface/95 shadow-card">
-      <CardContent className="space-y-2.5 p-4 md:p-3.5 xl:p-4">
-        <h3 className="text-sm font-black uppercase tracking-wide text-text-secondary">Plus tard</h3>
-
-        {tasks.length === 0 ? (
-          <p className="text-base font-medium text-text-secondary">Aucune autre tache pour le moment.</p>
-        ) : (
-          <ul className="space-y-2">
-            {tasks.map((task) => {
-              const effectiveStatus = getEffectiveStatus(task, currentMinutes);
-              return (
-                <li
-                  key={task.id}
-                  className="rounded-radius-button border border-border-subtle bg-bg-surface/80 px-3 py-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-base font-bold leading-snug text-text-primary">{task.title}</p>
-                      <p className="text-sm font-medium text-text-secondary">
-                        {task.startTime} - {task.endTime}
-                      </p>
-                    </div>
-                    <Badge variant={getStatusBadgeVariant(effectiveStatus)}>{getStatusLabel(effectiveStatus)}</Badge>
-                  </div>
-                </li>
-              );
-            })}
+              </li>
+            ))}
           </ul>
+        ) : (
+          <p className="reading text-base leading-relaxed text-text-secondary">
+            Le reste de ta journee est libre.
+          </p>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function HelpCard(): React.JSX.Element {
-  return (
-    <Card className="border-border-default bg-bg-surface/95 shadow-card">
-      <CardContent className="space-y-2 p-4 md:p-3.5 xl:p-4">
-        <p className="text-base font-semibold text-text-secondary">Besoin d&apos;aide ?</p>
-        <Link
-          href="/child/knowledge"
-          className="inline-flex h-touch-md items-center justify-center rounded-radius-button border border-border-default bg-bg-surface px-4 text-sm font-semibold text-text-primary transition-colors duration-200 hover:bg-bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+        <Button
+          size="md"
+          variant="ghost"
+          className="text-base font-semibold"
+          onClick={onOpenTimeline}
         >
-          Ouvrir une fiche
-        </Link>
+          Voir plus
+        </Button>
       </CardContent>
     </Card>
   );
@@ -593,21 +285,20 @@ export function ChildDayViewLive({
   isLoading = false,
   v2Enabled = false,
   timelineItems = EMPTY_TIMELINE_ITEMS,
-  currentContextItem = null,
   currentActionItem = null,
-  nextTimelineItem = null,
   dayBalance = EMPTY_DAY_BALANCE,
 }: ChildDayViewLiveProps): React.JSX.Element {
   const router = useRouter();
   const toast = useToast();
   const { date } = useCurrentTime(undefined, 60_000);
   const [, startTransition] = useTransition();
-  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>("guided");
 
   const [localTasks, setLocalTasks] = useState<TaskInstanceSummary[]>(instances);
   const [dailyPointsTotal, setDailyPointsTotal] = useState(initialDailyPointsTotal);
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null);
-  const [pointsFlyUpByInstanceId, setPointsFlyUpByInstanceId] = useState<Record<string, number>>({});
+  const [pausedTaskId, setPausedTaskId] = useState<string | null>(null);
+  const [completionFeedbackTaskId, setCompletionFeedbackTaskId] = useState<string | null>(null);
+  const [focusOverlayTaskId, setFocusOverlayTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoading) {
@@ -629,17 +320,14 @@ export function ChildDayViewLive({
     () => timelineTasks.filter((task) => !task.isReadOnly && task.status !== "ignore"),
     [timelineTasks],
   );
-  const orderedActionableTasks = useMemo(() => sortTemplateTasks(actionableTasks), [actionableTasks]);
-
+  const orderedActionableTasks = useMemo(
+    () => sortTemplateTasks(actionableTasks),
+    [actionableTasks],
+  );
   const tasksTotal = actionableTasks.length;
   const tasksCompleted = actionableTasks.filter((task) => task.status === "termine").length;
-  const pointsTarget = computePointsTarget({
-    dailyPointsTotal,
-    tasks: timelineTasks,
-    rewardTiers,
-  });
-
   const currentMinutes = getCurrentMinutes(date);
+
   const liveTimelineItems = useMemo(() => {
     if (!v2Enabled) {
       return timelineItems;
@@ -650,13 +338,7 @@ export function ChildDayViewLive({
       blocks: templateBlocks,
     });
   }, [templateBlocks, timelineItems, timelineTasks, v2Enabled]);
-  const liveCurrentContextItem = useMemo(() => {
-    if (!v2Enabled) {
-      return currentContextItem;
-    }
 
-    return findCurrentContextItem(liveTimelineItems, currentMinutes);
-  }, [currentContextItem, currentMinutes, liveTimelineItems, v2Enabled]);
   const liveCurrentActionItem = useMemo(() => {
     if (!v2Enabled) {
       return currentActionItem;
@@ -664,25 +346,12 @@ export function ChildDayViewLive({
 
     return findCurrentActionItem(liveTimelineItems, currentMinutes);
   }, [currentActionItem, currentMinutes, liveTimelineItems, v2Enabled]);
-  const liveNextTimelineItem = useMemo(() => {
-    if (!v2Enabled) {
-      return nextTimelineItem;
-    }
-
-    return findNextTimelineItem(liveTimelineItems, currentMinutes);
-  }, [currentMinutes, liveTimelineItems, nextTimelineItem, v2Enabled]);
-  const liveDayBalance = useMemo(() => {
-    if (!v2Enabled) {
-      return dayBalance;
-    }
-
-    return computeDayBalanceFromTimelineItems(liveTimelineItems);
-  }, [dayBalance, liveTimelineItems, v2Enabled]);
 
   const { currentTask, nextTask } = useMemo(
     () => getCurrentAndNextTasks(orderedActionableTasks, currentMinutes),
     [currentMinutes, orderedActionableTasks],
   );
+
   const currentTaskFromV2 = useMemo(() => {
     const sourceId = liveCurrentActionItem?.sourceRefId;
     if (!sourceId) {
@@ -691,7 +360,34 @@ export function ChildDayViewLive({
 
     return timelineTasks.find((task) => task.id === sourceId) ?? null;
   }, [liveCurrentActionItem?.sourceRefId, timelineTasks]);
-  const effectiveCurrentTask = v2Enabled ? currentTaskFromV2 ?? currentTask : currentTask;
+
+  const effectiveCurrentTask = v2Enabled ? (currentTaskFromV2 ?? currentTask) : currentTask;
+  const focusOverlayTask = useMemo(() => {
+    if (!focusOverlayTaskId) {
+      return null;
+    }
+
+    return localTasks.find((task) => task.id === focusOverlayTaskId) ?? null;
+  }, [focusOverlayTaskId, localTasks]);
+  const showFocusForActiveTask = effectiveCurrentTask
+    ? canOpenFocusForTask(effectiveCurrentTask)
+    : false;
+  const showCompletionFeedback = Boolean(
+    effectiveCurrentTask && completionFeedbackTaskId === effectiveCurrentTask.id,
+  );
+  const isActiveTaskPaused = Boolean(
+    effectiveCurrentTask && pausedTaskId === effectiveCurrentTask.id,
+  );
+
+  const nextMoments = useMemo(() => {
+    const future = [...liveTimelineItems]
+      .filter((item) => item.kind !== "context")
+      .filter((item) => item.status !== "ignore" && item.status !== "termine")
+      .filter((item) => timeToMinutes(item.startTime) > currentMinutes)
+      .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime));
+
+    return future.slice(0, 3);
+  }, [currentMinutes, liveTimelineItems]);
 
   const laterTasks = useMemo(() => {
     const currentTaskId = effectiveCurrentTask?.id ?? null;
@@ -708,6 +404,58 @@ export function ChildDayViewLive({
       return isLate || phase.isFuture;
     });
   }, [currentMinutes, effectiveCurrentTask?.id, nextTask?.id, orderedActionableTasks]);
+
+  useEffect(() => {
+    if (!pausedTaskId) {
+      return;
+    }
+
+    if (
+      !effectiveCurrentTask ||
+      effectiveCurrentTask.id !== pausedTaskId ||
+      effectiveCurrentTask.status === "termine"
+    ) {
+      setPausedTaskId(null);
+    }
+  }, [effectiveCurrentTask, pausedTaskId]);
+
+  useEffect(() => {
+    if (!focusOverlayTaskId || focusOverlayTask) {
+      return;
+    }
+
+    setFocusOverlayTaskId(null);
+  }, [focusOverlayTask, focusOverlayTaskId]);
+
+  const pointsTarget = computePointsTarget({
+    dailyPointsTotal,
+    tasks: timelineTasks,
+    rewardTiers,
+  });
+  const dayBalanceSummary = v2Enabled
+    ? computeDayBalanceFromTimelineItems(liveTimelineItems)
+    : dayBalance;
+  const dateLabel = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  }).format(date);
+  const contextLabel = dayContext
+    ? `${dateLabel} · ${dayContext.periodLabel} · ${getMomentLabel(dayContext.currentMoment)}`
+    : `${dateLabel} · ${templateName}`;
+  const contextLabelWithChild = `${childName} · ${contextLabel}`;
+
+  const openTimeline = useCallback(() => {
+    router.push("/child/my-day/timeline");
+  }, [router]);
+
+  const openChildSettings = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.dispatchEvent(new Event("ezra:open-child-settings"));
+  }, []);
 
   const handleStatusChange = useCallback(
     (instanceId: string, newStatus: TaskInstanceStatus) => {
@@ -765,20 +513,17 @@ export function ChildDayViewLive({
         setPendingInstanceId(null);
 
         if (isCompletionTransition) {
+          setPausedTaskId((current) => (current === instanceId ? null : current));
+          setCompletionFeedbackTaskId(instanceId);
+          window.setTimeout(() => {
+            setCompletionFeedbackTaskId((current) => (current === instanceId ? null : current));
+          }, 1800);
           haptic("success");
           playSound("taskComplete");
-          if (result.data.pointsDelta > 0) {
-            setPointsFlyUpByInstanceId((current) => ({ ...current, [instanceId]: result.data?.pointsDelta ?? 0 }));
-            window.setTimeout(() => {
-              setPointsFlyUpByInstanceId((current) => {
-                const next = { ...current };
-                delete next[instanceId];
-                return next;
-              });
-            }, 820);
-          }
-
+          toast.success("Bravo, c'est fait.");
           router.refresh();
+        } else {
+          setCompletionFeedbackTaskId(null);
         }
 
         if (result.data.unlockedAchievementLabels.length > 0) {
@@ -789,147 +534,179 @@ export function ChildDayViewLive({
     [dailyPointsTotal, localTasks, pendingInstanceId, router, toast],
   );
 
-  const handleFocusMode = useCallback(
+  const handlePauseToggle = useCallback(
     (instanceId: string) => {
-      router.push(`/child/focus/${instanceId}`);
+      setPausedTaskId((current) => (current === instanceId ? null : instanceId));
+      router.refresh();
     },
     [router],
   );
-  const openChildSettings = useCallback(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
 
-    window.dispatchEvent(new Event("ezra:open-child-settings"));
+  const closeFocusOverlay = useCallback(() => {
+    setFocusOverlayTaskId(null);
   }, []);
 
-  const showEmptyState = !isLoading && (!hasTemplate || (timelineTasks.length === 0 && templateBlocks.length === 0));
-  const contextLabel = dayContext
-    ? `Maintenant: ${getMomentLabel(dayContext.currentMoment)} - ${dayContext.currentContextLabel}`
-    : "Maintenant: Matin - Temps a la maison";
+  const handleFocusMode = useCallback(
+    (instanceId: string) => {
+      const task = localTasks.find((entry) => entry.id === instanceId);
+      if (!task || !canOpenFocusForTask(task)) {
+        return;
+      }
+
+      setFocusOverlayTaskId(task.id);
+    },
+    [localTasks],
+  );
+
+  const handleFocusSessionComplete = useCallback(
+    (focusedMinutes: number) => {
+      closeFocusOverlay();
+      toast.success(`Session focus terminee: ${focusedMinutes} min.`);
+      router.refresh();
+    },
+    [closeFocusOverlay, router, toast],
+  );
+
+  const showEmptyState =
+    !isLoading && (!hasTemplate || (timelineTasks.length === 0 && templateBlocks.length === 0));
 
   return (
-    <section className="mx-auto min-h-[calc(100vh-7.5rem)] w-full max-w-[1240px] space-y-4 overflow-x-clip [background:radial-gradient(circle_at_18%_8%,#eef2ff_0%,#f3fbf8_48%,#f5f8ff_100%)]">
-      <header className="flex items-start justify-between gap-3">
-        <div className="space-y-2">
-          <h1 className="font-display text-3xl font-black tracking-tight text-text-primary">Ma journee</h1>
-          <p className="text-base font-medium leading-snug text-text-secondary">Toutes mes taches du jour.</p>
-          <p className="text-sm font-medium text-text-secondary">Modele: {templateName}</p>
-          <p className="text-sm font-medium text-text-secondary">{contextLabel}</p>
+    <section className="mx-auto min-h-[calc(100vh-7.5rem)] w-full max-w-[1140px] space-y-5 pb-4">
+      <header className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <h1 className="font-display text-[30px] font-extrabold tracking-[0.01em] text-text-primary">
+              Ma journee
+            </h1>
+            <p className="text-base font-medium leading-relaxed text-text-secondary">
+              {contextLabelWithChild}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="shrink-0 text-base font-semibold"
+            onClick={openChildSettings}
+          >
+            Reglages
+          </Button>
         </div>
-        <Button size="sm" variant="secondary" className="shrink-0" onClick={openChildSettings}>
-          Reglages
-        </Button>
+
+        {!showEmptyState && !isLoading ? (
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="neutral">
+              {tasksCompleted}/{tasksTotal} taches
+            </Badge>
+            <Badge variant="neutral">
+              {dailyPointsTotal}/{pointsTarget} pts
+            </Badge>
+            <Badge variant="neutral">{dayBalanceSummary.totalPlannedMinutes} min planifiees</Badge>
+          </div>
+        ) : null}
       </header>
 
-      {isLoading ? <TimelineLoadingSkeleton /> : null}
+      {isLoading ? <TimelinePreviewSkeleton /> : null}
 
       {showEmptyState ? (
-        <FadeIn>
-          <EmptyState
-            icon={<DayPlannerIcon className="size-8" />}
-            title="Pas encore de planning"
-            description="Demande a tes parents de preparer ta journee type."
-            action={{
-              label: "Retour a l'accueil",
-              onClick: () => router.push("/child"),
-            }}
-          />
-        </FadeIn>
+        <EmptyState
+          icon={<DayPlannerIcon className="size-8" />}
+          title="Pas encore de planning"
+          description="Demande a tes parents de preparer ta journee type."
+          action={{
+            label: "Retour a l'accueil",
+            onClick: () => router.push("/child"),
+          }}
+        />
       ) : null}
 
       {!isLoading && !showEmptyState ? (
-        <div className="space-y-3">
-          <DailyProgressBar
-            pointsEarned={dailyPointsTotal}
-            pointsTarget={pointsTarget}
-            tasksCompleted={tasksCompleted}
-            tasksTotal={tasksTotal}
-          />
-          {v2Enabled ? <DayBalanceUnitsCard dayBalance={liveDayBalance} /> : null}
-
-          <div className="space-y-3 lg:hidden">
-            <MobileModeToggle mode={mobileViewMode} onChange={setMobileViewMode} />
-
-            {mobileViewMode === "guided" ? (
-              <div className="space-y-3">
-                <CurrentFocusCard
-                  currentTask={effectiveCurrentTask}
-                  nextTask={nextTask}
-                  currentContextItem={liveCurrentContextItem}
-                  nextTimelineItem={liveNextTimelineItem}
-                  dayContext={dayContext}
-                  currentMinutes={currentMinutes}
-                  pendingInstanceId={pendingInstanceId}
-                  onStatusChange={handleStatusChange}
-                  onFocusMode={handleFocusMode}
-                />
-                <NextTaskCard nextTask={nextTask} nextTimelineItem={liveNextTimelineItem} />
-                <LaterTasksCard tasks={laterTasks.slice(0, 5)} currentMinutes={currentMinutes} />
-                <HelpCard />
-                <Button size="lg" variant="secondary" fullWidth onClick={() => setMobileViewMode("timeline")}>
-                  Voir la timeline
-                </Button>
-              </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:gap-5">
+          <div className="space-y-4">
+            {effectiveCurrentTask ? (
+              <ActiveTaskCard
+                task={effectiveCurrentTask}
+                isPaused={isActiveTaskPaused}
+                isPending={pendingInstanceId === effectiveCurrentTask.id}
+                showFocusAction={showFocusForActiveTask}
+                showCompletionFeedback={showCompletionFeedback}
+                onComplete={() => handleStatusChange(effectiveCurrentTask.id, "termine")}
+                onPauseToggle={() => handlePauseToggle(effectiveCurrentTask.id)}
+                onFocus={() => handleFocusMode(effectiveCurrentTask.id)}
+                onOpenTimeline={openTimeline}
+              />
             ) : (
-              <div className="space-y-3">
-                <DayTimeline
-                  tasks={timelineTasks}
-                  blocks={templateBlocks}
-                  currentTime={date}
-                  pendingInstanceId={pendingInstanceId}
-                  pointsFlyUpByInstanceId={pointsFlyUpByInstanceId}
-                  onStatusChange={handleStatusChange}
-                  onFocusMode={handleFocusMode}
-                  childName={getFirstName(childName)}
-                  showBanner
-                  compact
-                  autoScrollToCurrent
-                  {...(dayContext ? { dayContext } : {})}
-                />
-                <Button size="lg" variant="secondary" fullWidth onClick={() => setMobileViewMode("guided")}>
-                  Revenir au mode guide
-                </Button>
-              </div>
+              <Card
+                role="button"
+                tabIndex={0}
+                aria-label="Ouvrir la timeline"
+                onClick={openTimeline}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openTimeline();
+                  }
+                }}
+                className="rounded-[20px] border-border-default bg-bg-surface shadow-card"
+              >
+                <CardContent className="space-y-3 p-5 md:p-6">
+                  <h2 className="font-display text-[26px] font-extrabold tracking-[0.01em] text-text-primary">
+                    Maintenant
+                  </h2>
+                  <p className="text-[17px] font-semibold tracking-[0.01em] text-text-primary">
+                    Aucun moment actif pour l&apos;instant.
+                  </p>
+                  <p className="reading text-base leading-relaxed text-text-secondary">
+                    Ouvre la timeline pour voir toute ta journee simplement.
+                  </p>
+                </CardContent>
+              </Card>
             )}
+
+            {effectiveCurrentTask && showFocusForActiveTask ? (
+              <FocusStrip
+                onOpenFocus={() => handleFocusMode(effectiveCurrentTask.id)}
+                disabled={pendingInstanceId === effectiveCurrentTask.id || isActiveTaskPaused}
+              />
+            ) : null}
+
+            <Button
+              size="lg"
+              variant="primary"
+              fullWidth
+              className="from-brand-primary to-brand-primary text-[18px] font-bold tracking-[0.01em] shadow-card"
+              onClick={openTimeline}
+            >
+              Continuer ma journee
+              <ArrowRightIcon className="size-5" />
+            </Button>
           </div>
 
-          <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)] lg:items-start lg:gap-4 xl:grid-cols-12 xl:gap-5">
-            <div className="lg:col-auto xl:col-span-8">
-              <DayTimeline
-                tasks={timelineTasks}
-                blocks={templateBlocks}
-                currentTime={date}
-                pendingInstanceId={pendingInstanceId}
-                pointsFlyUpByInstanceId={pointsFlyUpByInstanceId}
-                onStatusChange={handleStatusChange}
-                onFocusMode={handleFocusMode}
-                childName={getFirstName(childName)}
-                showBanner={false}
-                compact
-                {...(dayContext ? { dayContext } : {})}
-              />
-            </div>
-
-            <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start lg:col-auto xl:col-span-4">
-              <CurrentFocusCard
-                currentTask={effectiveCurrentTask}
-                nextTask={nextTask}
-                currentContextItem={liveCurrentContextItem}
-                nextTimelineItem={liveNextTimelineItem}
-                dayContext={dayContext}
-                currentMinutes={currentMinutes}
-                pendingInstanceId={pendingInstanceId}
-                onStatusChange={handleStatusChange}
-                onFocusMode={handleFocusMode}
-              />
-              <NextTaskCard nextTask={nextTask} nextTimelineItem={liveNextTimelineItem} />
-              <LaterTasksCard tasks={laterTasks.slice(0, 4)} currentMinutes={currentMinutes} />
-              <HelpCard />
-            </aside>
-          </div>
+          <aside className="space-y-4">
+            <NextMomentsCard items={nextMoments} />
+            <LaterMomentsCard items={laterTasks} onOpenTimeline={openTimeline} />
+          </aside>
         </div>
       ) : null}
+
+      <Modal
+        open={Boolean(focusOverlayTask)}
+        onClose={closeFocusOverlay}
+        title="Focus"
+        description="Minuteur doux pour t'aider a avancer calmement."
+        closeLabel="Fermer le focus"
+        className="max-w-4xl p-4 md:p-5"
+      >
+        {focusOverlayTask ? (
+          <FocusView
+            instance={focusOverlayTask}
+            presentation="overlay"
+            isTaskPaused={pausedTaskId === focusOverlayTask.id}
+            onClose={closeFocusOverlay}
+            onSessionComplete={handleFocusSessionComplete}
+            calmPomodoroOnly
+          />
+        ) : null}
+      </Modal>
     </section>
   );
 }

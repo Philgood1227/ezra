@@ -12,7 +12,7 @@ exports[`parentNavSections > conserve la structure de navigation parent 1`] = `
   ],
   "sections": [
     {
-      "id": "dashboard",
+      "id": "overview",
       "items": [
         {
           "href": "/parent/dashboard",
@@ -35,90 +35,121 @@ exports[`parentNavSections > conserve la structure de navigation parent 1`] = `
           "label": "Alarmes",
         },
       ],
-      "label": "Tableau de bord",
+      "label": "Essentiel",
     },
     {
-      "id": "organization",
+      "id": "planning",
       "items": [
         {
-          "href": "/parent/day-templates",
-          "icon": "TemplateIcon",
-          "id": "day-templates",
-          "label": "Journées types",
-        },
-        {
-          "href": "/parent/categories",
-          "icon": "TagsIcon",
-          "id": "categories",
-          "label": "Catégories",
-        },
-        {
-          "badgeKey": "schoolDiary",
-          "href": "/parent/school-diary",
-          "icon": "NotebookIcon",
-          "id": "school-diary",
-          "label": "Carnet scolaire",
-        },
-        {
           "badgeKey": "checklists",
-          "href": "/parent/checklists",
-          "icon": "ChecklistIcon",
-          "id": "checklists",
-          "label": "Checklists",
+          "href": "/parent/organization",
+          "icon": "TemplateIcon",
+          "id": "organization-hub",
+          "label": "Modules organisation",
+          "matchPrefixes": [
+            "/parent/organization",
+            "/parent/day-templates",
+            "/parent/weekly-tasks",
+            "/parent/school-diary",
+            "/parent/checklists",
+            "/parent/categories",
+          ],
         },
+      ],
+      "label": "Organisation",
+    },
+    {
+      "id": "fiches",
+      "items": [
+        {
+          "href": "/parent/fiches",
+          "icon": "FichesIcon",
+          "id": "fiches-hub",
+          "label": "Fiches",
+          "matchPrefixes": [
+            "/parent/fiches",
+          ],
+        },
+      ],
+      "label": "Fiches",
+    },
+    {
+      "id": "learning",
+      "items": [
+        {
+          "children": [
+            {
+              "excludePrefixes": [
+                "/parent/revisions/generate",
+              ],
+              "href": "/parent/revisions",
+              "icon": [Function],
+              "id": "revisions-library",
+              "label": "Bibliothèque",
+            },
+            {
+              "href": "/parent/resources/books",
+              "icon": [Function],
+              "id": "revisions-books-resources",
+              "label": "Livres & fiches",
+            },
+            {
+              "href": "/parent/revisions/generate",
+              "icon": [Function],
+              "id": "revisions-generate",
+              "label": "Générer (IA)",
+            },
+            {
+              "href": "/parent/knowledge",
+              "icon": [Function],
+              "id": "knowledge",
+              "label": "Connaissances",
+            },
+          ],
+          "href": "/parent/learning",
+          "icon": "LibraryIcon",
+          "id": "learning-hub",
+          "label": "Modules apprentissages",
+          "matchPrefixes": [
+            "/parent/learning",
+            "/parent/revisions",
+            "/parent/resources/books",
+            "/parent/knowledge",
+          ],
+        },
+      ],
+      "label": "Apprentissages",
+    },
+    {
+      "id": "daily-life",
+      "items": [
         {
           "href": "/parent/meals",
           "icon": "MealIcon",
           "id": "meals",
           "label": "Repas",
         },
-        {
-          "href": "/parent/knowledge",
-          "icon": "KnowledgeIcon",
-          "id": "knowledge",
-          "label": "Connaissances",
-        },
       ],
-      "label": "Organisation",
+      "label": "Vie quotidienne",
     },
     {
-      "id": "family-motivation",
+      "id": "motivation",
       "items": [
         {
-          "href": "/parent/achievements",
+          "href": "/parent/family",
           "icon": "BadgeIcon",
-          "id": "achievements",
-          "label": "Succès & badges",
-        },
-        {
-          "href": "/parent/rewards",
-          "icon": "RewardIcon",
-          "id": "rewards",
-          "label": "Récompenses",
-        },
-        {
-          "href": "/parent/gamification",
-          "icon": "ChartIcon",
-          "id": "gamification",
-          "label": "Gamification",
-        },
-        {
-          "href": "/parent/cinema",
-          "icon": "CinemaIcon",
-          "id": "cinema",
-          "label": "Cinéma",
-        },
-        {
-          "href": "/parent/dashboard#emotions",
-          "icon": "HeartIcon",
-          "id": "emotions",
-          "label": "Émotions",
+          "id": "family-hub",
+          "label": "Modules famille",
           "matchPrefixes": [
-            "/parent/dashboard",
+            "/parent/family",
+            "/parent/achievements",
+            "/parent/rewards",
+            "/parent/gamification",
+            "/parent/cinema",
           ],
         },
       ],
-      "label": "Vie familiale & Motivation",
+      "label": "Vie familiale & motivation",
     },
   ],
 }

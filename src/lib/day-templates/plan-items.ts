@@ -1,6 +1,12 @@
 import { inferActionableKind, toContextSubkind } from "@/lib/day-templates/kind-inference";
 import { timeToMinutes } from "@/lib/day-templates/time";
-import type { DayTemplateBlockSummary, DayTimelineItemSummary, TaskInstanceSummary } from "@/lib/day-templates/types";
+import type {
+  CategoryColorKey,
+  CategoryIconKey,
+  DayTemplateBlockSummary,
+  DayTimelineItemSummary,
+  TaskInstanceSummary,
+} from "@/lib/day-templates/types";
 
 interface BuildUnifiedTimelineItemsInput {
   tasks: TaskInstanceSummary[];
@@ -43,7 +49,7 @@ function getDefaultContextTitle(subkind: DayTimelineItemSummary["subkind"]): str
   return "Contexte";
 }
 
-function getContextColorKey(subkind: DayTimelineItemSummary["subkind"]): string {
+function getContextColorKey(subkind: DayTimelineItemSummary["subkind"]): CategoryColorKey {
   if (subkind === "school") {
     return "category-ecole";
   }
@@ -63,13 +69,13 @@ function getContextColorKey(subkind: DayTimelineItemSummary["subkind"]): string 
   return "category-routine";
 }
 
-function getContextIcon(subkind: DayTimelineItemSummary["subkind"]): string {
+function getContextIcon(subkind: DayTimelineItemSummary["subkind"]): CategoryIconKey {
   if (subkind === "school") {
     return "school";
   }
 
   if (subkind === "home") {
-    return "home";
+    return "routine";
   }
 
   if (subkind === "transport") {
@@ -77,10 +83,10 @@ function getContextIcon(subkind: DayTimelineItemSummary["subkind"]): string {
   }
 
   if (subkind === "club") {
-    return "club";
+    return "sport";
   }
 
-  return "context";
+  return "default";
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -261,7 +267,7 @@ function buildVirtualHomeContextItems({
         sourceRefId: null,
         category: {
           name: "Maison",
-          icon: "home",
+          icon: "routine",
           colorKey: "category-calme",
         },
       });
@@ -290,7 +296,7 @@ function buildVirtualHomeContextItems({
       sourceRefId: null,
       category: {
         name: "Maison",
-        icon: "home",
+        icon: "routine",
         colorKey: "category-calme",
       },
     });

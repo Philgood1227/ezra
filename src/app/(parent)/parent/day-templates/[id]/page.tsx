@@ -2,12 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ds";
 import { DayTemplateEditor } from "@/features/day-templates/components";
-import { getFamilyMembersForCurrentFamily } from "@/lib/api/children";
-import { getKnowledgeCardOptionsForCurrentFamily } from "@/lib/api/knowledge";
-import {
-  getTaskCategoriesForCurrentFamily,
-  getTemplateByIdForCurrentFamily,
-} from "@/lib/api/templates";
+import { getTemplateByIdForCurrentFamily } from "@/lib/api/templates";
 
 interface DayTemplateEditorPageProps {
   params: Promise<{
@@ -34,12 +29,7 @@ export default async function DayTemplateEditorPage({
   const resolvedSearchParams = await searchParams;
   const isNew = resolvedParams.id === "new";
 
-  const [categories, familyMembers, knowledgeCardOptions, template] = await Promise.all([
-    getTaskCategoriesForCurrentFamily(),
-    getFamilyMembersForCurrentFamily(),
-    getKnowledgeCardOptionsForCurrentFamily(),
-    isNew ? Promise.resolve(null) : getTemplateByIdForCurrentFamily(resolvedParams.id),
-  ]);
+  const template = isNew ? null : await getTemplateByIdForCurrentFamily(resolvedParams.id);
 
   if (!isNew && !template) {
     notFound();
@@ -65,13 +55,12 @@ export default async function DayTemplateEditorPage({
       </Card>
 
       <DayTemplateEditor
-        categories={categories}
-        familyMembers={familyMembers}
+        categories={[]}
         template={template}
+        mode="structure"
         initialWeekday={template?.weekday ?? parseWeekday(resolvedSearchParams.weekday)}
-        knowledgeCardOptions={knowledgeCardOptions}
+        knowledgeCardOptions={[]}
       />
     </section>
   );
 }
-

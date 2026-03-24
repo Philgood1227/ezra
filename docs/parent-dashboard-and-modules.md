@@ -27,9 +27,10 @@ Composants principaux:
 
 Organisation:
 
-1. Haut: cartes KPI (taches, points, humeur, charge)
-2. Milieu: widgets hebdomadaires (taches + points)
-3. Bas: humeur, charge du jour, repas, carnet, actions rapides
+1. Haut: priorites parent (3 actions recommandees + raccourcis hubs)
+2. KPI (taches, points, humeur, charge)
+3. Milieu: widgets hebdomadaires (taches + points)
+4. Bas: humeur, charge du jour, repas, carnet, actions rapides
 
 Principes UX:
 
@@ -37,6 +38,12 @@ Principes UX:
 2. comparaison hebdo compacte (7 jours)
 3. sections actionnables sans surcharge
 4. transitions douces, sans motion excessive
+
+Navigation complementaire:
+
+1. sous-menu contextuel par module (barre horizontale sous le header parent)
+2. drawer "Actions rapides" pour acces direct aux ecrans frequents
+3. meme grammaire visuelle DS (`premium` actif, `glass` inactif) pour reduire la charge cognitive
 
 ## Modules de configuration parent
 
@@ -58,6 +65,18 @@ Patterns:
 1. semaine visible en cartes lisibles
 2. edition par bloc de tache avec panneau details
 3. validation inline des champs requis (nom, titre, duree)
+
+### Hub apprentissages
+
+Route:
+
+1. `/parent/learning`
+
+Comportement:
+
+1. point d'entree unique vers Bibliotheque, Generer (IA), Livres & fiches et Connaissances
+2. reduction de la densite de la sidebar parent (moins d'onglets permanents)
+3. navigation detaillee disponible dans le sous-menu contextuel et le drawer actions rapides
 
 ### Carnet scolaire et checklists
 

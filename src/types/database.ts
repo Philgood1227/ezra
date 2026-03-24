@@ -41,6 +41,7 @@ export type Database = {
       day_template_blocks: {
         Row: {
           block_type: "school" | "home" | "transport" | "club" | "daycare" | "free_time" | "other";
+          child_time_block_id: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
           created_at: string;
           day_template_id: string;
           end_time: string;
@@ -52,6 +53,7 @@ export type Database = {
         };
         Insert: {
           block_type: "school" | "home" | "transport" | "club" | "daycare" | "free_time" | "other";
+          child_time_block_id?: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
           created_at?: string;
           day_template_id: string;
           end_time: string;
@@ -63,6 +65,7 @@ export type Database = {
         };
         Update: {
           block_type?: "school" | "home" | "transport" | "club" | "daycare" | "free_time" | "other";
+          child_time_block_id?: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
           created_at?: string;
           day_template_id?: string;
           end_time?: string;
@@ -138,8 +141,322 @@ export type Database = {
           },
         ];
       };
+      revision_cards: {
+        Row: {
+          content: Json;
+          content_json: Json;
+          created_at: string;
+          created_by_profile_id: string | null;
+          family_id: string;
+          goal: string | null;
+          id: string;
+          level: string | null;
+          status: "draft" | "published";
+          subject: string;
+          tags: string[];
+          title: string;
+          type: "concept" | "procedure" | "vocab" | "comprehension";
+          updated_at: string;
+        };
+        Insert: {
+          content?: Json;
+          content_json?: Json;
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          family_id: string;
+          goal?: string | null;
+          id?: string;
+          level?: string | null;
+          status?: "draft" | "published";
+          subject: string;
+          tags?: string[];
+          title: string;
+          type?: "concept" | "procedure" | "vocab" | "comprehension";
+          updated_at?: string;
+        };
+        Update: {
+          content?: Json;
+          content_json?: Json;
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          family_id?: string;
+          goal?: string | null;
+          id?: string;
+          level?: string | null;
+          status?: "draft" | "published";
+          subject?: string;
+          tags?: string[];
+          title?: string;
+          type?: "concept" | "procedure" | "vocab" | "comprehension";
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_cards_created_by_profile_id_fkey";
+            columns: ["created_by_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_cards_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      revision_books: {
+        Row: {
+          created_at: string;
+          created_by_profile_id: string | null;
+          error_message: string | null;
+          family_id: string;
+          file_name: string;
+          file_path: string;
+          id: string;
+          indexed_text: string | null;
+          level: string;
+          school_year: string | null;
+          status: "uploaded" | "indexing" | "indexed" | "error";
+          subject: "french" | "maths" | "german";
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          error_message?: string | null;
+          family_id: string;
+          file_name: string;
+          file_path: string;
+          id?: string;
+          indexed_text?: string | null;
+          level: string;
+          school_year?: string | null;
+          status?: "uploaded" | "indexing" | "indexed" | "error";
+          subject: "french" | "maths" | "german";
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          error_message?: string | null;
+          family_id?: string;
+          file_name?: string;
+          file_path?: string;
+          id?: string;
+          indexed_text?: string | null;
+          level?: string;
+          school_year?: string | null;
+          status?: "uploaded" | "indexing" | "indexed" | "error";
+          subject?: "french" | "maths" | "german";
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_books_created_by_profile_id_fkey";
+            columns: ["created_by_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_books_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      revision_card_links: {
+        Row: {
+          created_at: string;
+          created_by_profile_id: string | null;
+          family_id: string;
+          id: string;
+          revision_card_id: string;
+          template_task_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          family_id: string;
+          id?: string;
+          revision_card_id: string;
+          template_task_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by_profile_id?: string | null;
+          family_id?: string;
+          id?: string;
+          revision_card_id?: string;
+          template_task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_card_links_created_by_profile_id_fkey";
+            columns: ["created_by_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_card_links_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_card_links_revision_card_id_fkey";
+            columns: ["revision_card_id"];
+            isOneToOne: false;
+            referencedRelation: "revision_cards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_card_links_template_task_id_fkey";
+            columns: ["template_task_id"];
+            isOneToOne: false;
+            referencedRelation: "template_tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      revision_progress: {
+        Row: {
+          child_profile_id: string;
+          completed_count: number;
+          confidence_score: number | null;
+          created_at: string;
+          family_id: string;
+          id: string;
+          last_seen_at: string | null;
+          revision_card_id: string;
+          status: "not_started" | "in_progress" | "completed";
+          success_streak: number;
+          updated_at: string;
+        };
+        Insert: {
+          child_profile_id: string;
+          completed_count?: number;
+          confidence_score?: number | null;
+          created_at?: string;
+          family_id: string;
+          id?: string;
+          last_seen_at?: string | null;
+          revision_card_id: string;
+          status?: "not_started" | "in_progress" | "completed";
+          success_streak?: number;
+          updated_at?: string;
+        };
+        Update: {
+          child_profile_id?: string;
+          completed_count?: number;
+          confidence_score?: number | null;
+          created_at?: string;
+          family_id?: string;
+          id?: string;
+          last_seen_at?: string | null;
+          revision_card_id?: string;
+          status?: "not_started" | "in_progress" | "completed";
+          success_streak?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_progress_child_profile_id_fkey";
+            columns: ["child_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_progress_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_progress_revision_card_id_fkey";
+            columns: ["revision_card_id"];
+            isOneToOne: false;
+            referencedRelation: "revision_cards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_revision_state: {
+        Row: {
+          attempts: number;
+          card_id: string;
+          created_at: string;
+          family_id: string;
+          last_quiz_score: number | null;
+          last_reviewed_at: string | null;
+          stars: number;
+          status: "unseen" | "in_progress" | "mastered";
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          attempts?: number;
+          card_id: string;
+          created_at?: string;
+          family_id: string;
+          last_quiz_score?: number | null;
+          last_reviewed_at?: string | null;
+          stars?: number;
+          status: "unseen" | "in_progress" | "mastered";
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          attempts?: number;
+          card_id?: string;
+          created_at?: string;
+          family_id?: string;
+          last_quiz_score?: number | null;
+          last_reviewed_at?: string | null;
+          stars?: number;
+          status?: "unseen" | "in_progress" | "mastered";
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_revision_state_card_id_fkey";
+            columns: ["card_id"];
+            isOneToOne: false;
+            referencedRelation: "revision_cards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_revision_state_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_revision_state_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_categories: {
         Row: {
+          code: "homework" | "revision" | "training" | "activity" | "routine" | "leisure";
           color_key: string;
           created_at: string;
           default_item_kind: "activity" | "mission" | "leisure" | null;
@@ -149,6 +466,7 @@ export type Database = {
           name: string;
         };
         Insert: {
+          code: "homework" | "revision" | "training" | "activity" | "routine" | "leisure";
           color_key: string;
           created_at?: string;
           default_item_kind?: "activity" | "mission" | "leisure" | null;
@@ -158,6 +476,7 @@ export type Database = {
           name: string;
         };
         Update: {
+          code?: "homework" | "revision" | "training" | "activity" | "routine" | "leisure";
           color_key?: string;
           created_at?: string;
           default_item_kind?: "activity" | "mission" | "leisure" | null;
@@ -793,7 +1112,11 @@ export type Database = {
           id: string;
           is_default: boolean;
           label: string;
-          type: "piscine" | "sortie" | "evaluation" | "quotidien" | "autre";
+          recurrence_days: number[] | null;
+          recurrence_end_date: string | null;
+          recurrence_rule: "none" | "daily" | "weekdays" | "school_days" | "weekly_days";
+          recurrence_start_date: string | null;
+          type: "piscine" | "sortie" | "evaluation" | "quotidien" | "routine" | "autre";
         };
         Insert: {
           created_at?: string;
@@ -802,7 +1125,11 @@ export type Database = {
           id?: string;
           is_default?: boolean;
           label: string;
-          type: "piscine" | "sortie" | "evaluation" | "quotidien" | "autre";
+          recurrence_days?: number[] | null;
+          recurrence_end_date?: string | null;
+          recurrence_rule?: "none" | "daily" | "weekdays" | "school_days" | "weekly_days";
+          recurrence_start_date?: string | null;
+          type: "piscine" | "sortie" | "evaluation" | "quotidien" | "routine" | "autre";
         };
         Update: {
           created_at?: string;
@@ -811,7 +1138,11 @@ export type Database = {
           id?: string;
           is_default?: boolean;
           label?: string;
-          type?: "piscine" | "sortie" | "evaluation" | "quotidien" | "autre";
+          recurrence_days?: number[] | null;
+          recurrence_end_date?: string | null;
+          recurrence_rule?: "none" | "daily" | "weekdays" | "school_days" | "weekly_days";
+          recurrence_start_date?: string | null;
+          type?: "piscine" | "sortie" | "evaluation" | "quotidien" | "routine" | "autre";
         };
         Relationships: [
           {
@@ -864,6 +1195,7 @@ export type Database = {
           family_id: string;
           id: string;
           label: string;
+          source_template_id: string | null;
           type: string;
         };
         Insert: {
@@ -874,6 +1206,7 @@ export type Database = {
           family_id: string;
           id?: string;
           label: string;
+          source_template_id?: string | null;
           type: string;
         };
         Update: {
@@ -884,6 +1217,7 @@ export type Database = {
           family_id?: string;
           id?: string;
           label?: string;
+          source_template_id?: string | null;
           type?: string;
         };
         Relationships: [
@@ -906,6 +1240,13 @@ export type Database = {
             columns: ["family_id"];
             isOneToOne: false;
             referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "checklist_instances_source_template_id_fkey";
+            columns: ["source_template_id"];
+            isOneToOne: false;
+            referencedRelation: "checklist_templates";
             referencedColumns: ["id"];
           },
         ];
@@ -1580,6 +1921,58 @@ export type Database = {
           },
         ];
       };
+      reward_claims: {
+        Row: {
+          claim_date: string;
+          claimed_at: string;
+          child_profile_id: string;
+          family_id: string;
+          id: string;
+          points_spent: number;
+          reward_tier_id: string;
+        };
+        Insert: {
+          claim_date?: string;
+          claimed_at?: string;
+          child_profile_id: string;
+          family_id: string;
+          id?: string;
+          points_spent: number;
+          reward_tier_id: string;
+        };
+        Update: {
+          claim_date?: string;
+          claimed_at?: string;
+          child_profile_id?: string;
+          family_id?: string;
+          id?: string;
+          points_spent?: number;
+          reward_tier_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reward_claims_child_profile_id_fkey";
+            columns: ["child_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reward_claims_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reward_claims_reward_tier_id_fkey";
+            columns: ["reward_tier_id"];
+            isOneToOne: false;
+            referencedRelation: "reward_tiers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reward_tiers: {
         Row: {
           created_at: string;
@@ -1628,8 +2021,11 @@ export type Database = {
           id: string;
           item_kind: "activity" | "mission" | "leisure";
           item_subkind: string | null;
+          instructions_html: string | null;
           knowledge_card_id: string | null;
           points_base: number;
+          recommended_child_time_block_id: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
+          scheduled_date: string | null;
           sort_order: number;
           start_time: string;
           template_id: string;
@@ -1644,8 +2040,11 @@ export type Database = {
           id?: string;
           item_kind?: "activity" | "mission" | "leisure";
           item_subkind?: string | null;
+          instructions_html?: string | null;
           knowledge_card_id?: string | null;
           points_base?: number;
+          recommended_child_time_block_id?: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
+          scheduled_date?: string | null;
           sort_order?: number;
           start_time: string;
           template_id: string;
@@ -1660,8 +2059,11 @@ export type Database = {
           id?: string;
           item_kind?: "activity" | "mission" | "leisure";
           item_subkind?: string | null;
+          instructions_html?: string | null;
           knowledge_card_id?: string | null;
           points_base?: number;
+          recommended_child_time_block_id?: "morning" | "noon" | "afternoon" | "home" | "evening" | null;
+          scheduled_date?: string | null;
           sort_order?: number;
           start_time?: string;
           template_id?: string;
