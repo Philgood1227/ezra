@@ -1,4 +1,34 @@
-import type { AlarmMode, AlarmRuleInput } from "@/lib/day-templates/types";
+import type { AlarmMode, AlarmRuleInput, AlarmRuleKind, AlarmRuleSummary } from "@/lib/day-templates/types";
+
+export const TIME_TIMER_RULE_PREFIX = "__TT__:";
+
+export function encodeAlarmRuleLabelByKind(label: string, ruleKind: AlarmRuleKind): string {
+  const trimmed = label.trim();
+  if (ruleKind === "time_timer") {
+    const normalized = trimmed.startsWith(TIME_TIMER_RULE_PREFIX)
+      ? trimmed.slice(TIME_TIMER_RULE_PREFIX.length)
+      : trimmed;
+    return `${TIME_TIMER_RULE_PREFIX}${normalized}`;
+  }
+
+  return trimmed.startsWith(TIME_TIMER_RULE_PREFIX)
+    ? trimmed.slice(TIME_TIMER_RULE_PREFIX.length)
+    : trimmed;
+}
+
+export function parseAlarmRuleKindFromLabel(label: string): AlarmRuleKind {
+  return label.startsWith(TIME_TIMER_RULE_PREFIX) ? "time_timer" : "alarm";
+}
+
+export function decodeAlarmRuleLabel(label: string): string {
+  return label.startsWith(TIME_TIMER_RULE_PREFIX)
+    ? label.slice(TIME_TIMER_RULE_PREFIX.length)
+    : label;
+}
+
+export function isAlarmRuleOfKind(rule: Pick<AlarmRuleSummary, "ruleKind">, kind: AlarmRuleKind): boolean {
+  return rule.ruleKind === kind;
+}
 
 export const MONDAY_BIT = 1 << 0;
 export const TUESDAY_BIT = 1 << 1;
@@ -98,6 +128,7 @@ export function getModeDaysMask(mode: AlarmMode, customMask: number): number {
 
 export function getDefaultAlarmInput(): AlarmRuleInput {
   return {
+    ruleKind: "alarm",
     label: "",
     mode: "semaine_travail",
     oneShotAt: null,
@@ -107,6 +138,96 @@ export function getDefaultAlarmInput(): AlarmRuleInput {
     message: "C'est l'heure.",
     enabled: true,
   };
+}
+
+function getDayBitFromDateInTimezoneOffset(utcDate: Date, timezoneOffsetMinutes: number): number {
+  const localDate = new Date(utcDate.getTime() - timezoneOffsetMinutes * 60_000);
+  const day = localDate.getDay();
+  if (day === 0) {
+    return SUNDAY_BIT;
+  }
+  return 1 << (day - 1);
+}
+
+function buildUtcDateAtLocalTime(input: {
+  utcReference: Date;
+  timezoneOffsetMinutes: number;
+  hour: number;
+  minute: number;
+  second: number;
+  dayOffset: number;
+}): Date {
+  const localRef = new Date(input.utcReference.getTime() - input.timezoneOffsetMinutes * 60_000);
+  const localMidnightUtcMillis = Date.UTC(
+    localRef.getUTCFullYear(),
+    localRef.getUTCMonth(),
+    localRef.getUTCDate() + input.dayOffset,
+    0,
+    0,
+    0,
+    0,
+  );
+  const localDueUtcMillis =
+    localMidnightUtcMillis + (input.hour * 3600 + input.minute * 60 + input.second) * 1000;
+  return new Date(localDueUtcMillis + input.timezoneOffsetMinutes * 60_000);
+}
+
+export function getNextDueAtIsoForRule(input: {
+  rule: AlarmRuleScheduleLike;
+  nowIso: string;
+  timezoneOffsetMinutes: number;
+  maxDaysAhead?: number;
+}): string | null {
+  if (!input.rule.enabled) {
+    return null;
+  }
+
+  const now = new Date(input.nowIso);
+  if (Number.isNaN(now.getTime())) {
+    return null;
+  }
+
+  if (input.rule.mode === "ponctuelle") {
+    if (!input.rule.oneShotAt) {
+      return null;
+    }
+    const oneShot = new Date(input.rule.oneShotAt);
+    if (Number.isNaN(oneShot.getTime()) || oneShot.getTime() < now.getTime()) {
+      return null;
+    }
+    return oneShot.toISOString();
+  }
+
+  if (!input.rule.timeOfDay) {
+    return null;
+  }
+  const parsedTime = parseTimeOfDay(input.rule.timeOfDay);
+  if (!parsedTime) {
+    return null;
+  }
+
+  const maxDays = Math.max(1, Math.trunc(input.maxDaysAhead ?? 14));
+  const mask = getModeDaysMask(input.rule.mode, input.rule.daysMask);
+
+  for (let dayOffset = 0; dayOffset <= maxDays; dayOffset += 1) {
+    const candidate = buildUtcDateAtLocalTime({
+      utcReference: now,
+      timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+      hour: parsedTime.hour,
+      minute: parsedTime.minute,
+      second: parsedTime.second,
+      dayOffset,
+    });
+    const dayBit = getDayBitFromDateInTimezoneOffset(candidate, input.timezoneOffsetMinutes);
+    if ((mask & dayBit) === 0) {
+      continue;
+    }
+    if (candidate.getTime() >= now.getTime()) {
+      return candidate.toISOString();
+    }
+  }
+
+  return null;
 }
 
 export function describeAlarmMode(mode: AlarmMode): string {

@@ -716,11 +716,13 @@ export interface ChecklistByDay {
 
 export type AlarmMode = "ponctuelle" | "semaine_travail" | "semaine_complete" | "personnalise";
 export type AlarmEventStatus = "declenchee" | "acknowledged";
+export type AlarmRuleKind = "alarm" | "time_timer";
 
 export interface AlarmRuleSummary {
   id: string;
   familyId: string;
   childProfileId: string;
+  ruleKind?: AlarmRuleKind;
   label: string;
   mode: AlarmMode;
   oneShotAt: string | null;
@@ -734,6 +736,7 @@ export interface AlarmRuleSummary {
 }
 
 export interface AlarmRuleInput {
+  ruleKind?: AlarmRuleKind;
   label: string;
   mode: AlarmMode;
   oneShotAt: string | null;

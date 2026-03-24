@@ -1,26 +1,64 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Button } from "@/components/ds";
+import {
+  acknowledgeAlarmEventAction,
+  getNextTimeTimerStateAction,
+  pollDueAlarmEventsAction,
+} from "@/lib/actions/alarms";
+import type { AlarmEventWithRule } from "@/lib/day-templates/types";
 
 interface FloatingSchoolTimeTimerProps {
   visible: boolean;
-  targetHour?: number;
-  targetMinute?: number;
 }
 
-const ALARM_TEXT = "Il est temps de se brosser les dents et de finir de se preparer.";
-
-function formatDuration(totalSeconds: number): string {
-  const clamped = Math.max(0, totalSeconds);
-  const hours = Math.floor(clamped / 3600);
-  const minutes = Math.floor((clamped % 3600) / 60);
-  const seconds = clamped % 60;
-  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+interface TimeTimerState {
+  dueAtIso: string | null;
+  message: string | null;
+  soundKey: string | null;
+  label: string | null;
 }
 
-function playAlarmSound(): void {
-  if (typeof window === "undefined") {
+interface SoundStep {
+  frequency: number;
+  durationMs: number;
+  gapMs: number;
+  type: OscillatorType;
+}
+
+const SOUND_PATTERNS: Record<string, SoundStep[]> = {
+  cloche_douce: [
+    { frequency: 784, durationMs: 220, gapMs: 140, type: "sine" },
+    { frequency: 1047, durationMs: 260, gapMs: 0, type: "sine" },
+  ],
+  cloche_rapide: [
+    { frequency: 932, durationMs: 130, gapMs: 80, type: "triangle" },
+    { frequency: 932, durationMs: 130, gapMs: 80, type: "triangle" },
+    { frequency: 1175, durationMs: 190, gapMs: 0, type: "triangle" },
+  ],
+  carillon: [
+    { frequency: 659, durationMs: 160, gapMs: 80, type: "sine" },
+    { frequency: 784, durationMs: 180, gapMs: 80, type: "sine" },
+    { frequency: 988, durationMs: 260, gapMs: 0, type: "sine" },
+  ],
+  tonalite_spatiale: [
+    { frequency: 523, durationMs: 120, gapMs: 70, type: "sawtooth" },
+    { frequency: 659, durationMs: 150, gapMs: 70, type: "sawtooth" },
+    { frequency: 880, durationMs: 240, gapMs: 0, type: "sawtooth" },
+  ],
+};
+
+function formatTimerLabel(totalSeconds: number): string {
+  const safe = Math.max(0, Math.trunc(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function playAlarmSound(soundKey: string | null): void {
+  const pattern = SOUND_PATTERNS[soundKey ?? "cloche_douce"] ?? SOUND_PATTERNS.cloche_douce;
+  if (!pattern || typeof window === "undefined") {
     return;
   }
 
@@ -32,105 +70,140 @@ function playAlarmSound(): void {
 
   const context = new AudioContextCtor();
   void context.resume().catch(() => undefined);
-  const now = context.currentTime;
-  const notes = [784, 988, 1175];
 
-  notes.forEach((frequency, index) => {
-    const start = now + index * 0.22;
+  let cursor = context.currentTime;
+  for (const step of pattern) {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(frequency, start);
-    gain.gain.setValueAtTime(0.001, start);
-    gain.gain.exponentialRampToValueAtTime(0.15, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.19);
+
+    oscillator.type = step.type;
+    oscillator.frequency.setValueAtTime(step.frequency, cursor);
+
+    gain.gain.setValueAtTime(0.001, cursor);
+    gain.gain.exponentialRampToValueAtTime(0.14, cursor + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, cursor + step.durationMs / 1000);
+
     oscillator.connect(gain);
     gain.connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(start + 0.2);
-  });
+
+    oscillator.start(cursor);
+    oscillator.stop(cursor + step.durationMs / 1000);
+    cursor += (step.durationMs + step.gapMs) / 1000;
+  }
 
   window.setTimeout(() => {
     void context.close().catch(() => undefined);
-  }, 1200);
+  }, Math.ceil((cursor - context.currentTime) * 1000) + 400);
 }
 
-function getStorageKeyForDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `ezra_school_timer_alert_${year}-${month}-${day}`;
-}
-
-export function FloatingSchoolTimeTimer({
-  visible,
-  targetHour = 7,
-  targetMinute = 40,
-}: FloatingSchoolTimeTimerProps): React.JSX.Element | null {
+export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProps): React.JSX.Element | null {
   const [now, setNow] = React.useState(() => new Date());
   const [position, setPosition] = React.useState<{ x: number; y: number } | null>(null);
-  const [showMessage, setShowMessage] = React.useState(false);
+  const [timeTimer, setTimeTimer] = React.useState<TimeTimerState>({
+    dueAtIso: null,
+    message: null,
+    soundKey: null,
+    label: null,
+  });
+  const [activeEvent, setActiveEvent] = React.useState<AlarmEventWithRule | null>(null);
+  const [feedback, setFeedback] = React.useState<string | null>(null);
+
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const totalDurationRef = React.useRef<number>(1);
-  const dragRef = React.useRef<{
-    pointerId: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
+  const dragRef = React.useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const playedEventIdsRef = React.useRef<Set<string>>(new Set<string>());
+
+  const refreshData = React.useCallback(async () => {
+    const payload = {
+      nowIso: new Date().toISOString(),
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      toleranceMinutes: 2,
+      ruleKind: "time_timer",
+    };
+
+    const [pollResult, nextResult] = await Promise.all([
+      pollDueAlarmEventsAction(payload),
+      getNextTimeTimerStateAction(payload),
+    ]);
+
+    if (!pollResult.success) {
+      setFeedback(pollResult.error ?? "Impossible de verifier les Time Timers.");
+    } else {
+      setFeedback(null);
+      setActiveEvent(pollResult.data?.events?.[0] ?? null);
+    }
+
+    if (nextResult.success && nextResult.data) {
+      setTimeTimer(nextResult.data);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!visible) {
       return;
     }
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, [visible]);
+
+    void refreshData();
+    const secondTick = window.setInterval(() => setNow(new Date()), 1000);
+    const pollTick = window.setInterval(() => {
+      void refreshData();
+    }, 20_000);
+
+    return () => {
+      window.clearInterval(secondTick);
+      window.clearInterval(pollTick);
+    };
+  }, [refreshData, visible]);
 
   React.useEffect(() => {
     if (!visible || typeof window === "undefined" || position) {
       return;
     }
-    const width = 224;
+
+    const width = 236;
     const x = Math.max(12, window.innerWidth - width - 16);
     setPosition({ x, y: 96 });
   }, [position, visible]);
 
-  const targetDate = React.useMemo(() => {
-    const next = new Date(now);
-    next.setHours(targetHour, targetMinute, 0, 0);
-    return next;
-  }, [now, targetHour, targetMinute]);
+  React.useEffect(() => {
+    if (!activeEvent) {
+      return;
+    }
 
-  const remainingMs = Math.max(0, targetDate.getTime() - now.getTime());
+    if (playedEventIdsRef.current.has(activeEvent.id)) {
+      return;
+    }
+
+    playedEventIdsRef.current.add(activeEvent.id);
+    playAlarmSound(activeEvent.ruleSoundKey);
+  }, [activeEvent]);
+
+  const dueAtIso = activeEvent?.dueAt ?? timeTimer.dueAtIso;
+  const targetTimestamp = React.useMemo(() => {
+    if (!dueAtIso) {
+      return null;
+    }
+    const parsed = new Date(dueAtIso).getTime();
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [dueAtIso]);
+  const isValidTarget = targetTimestamp !== null;
+
+  const remainingMs = isValidTarget ? Math.max(0, targetTimestamp - now.getTime()) : 0;
   const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-  React.useEffect(() => {
-    if (!visible) {
-      totalDurationRef.current = 1;
-      return;
+  const totalMs = React.useMemo(() => {
+    if (targetTimestamp === null) {
+      return 1;
     }
-    if (remainingMs > 0 && totalDurationRef.current <= 1) {
-      totalDurationRef.current = Math.max(1, remainingMs);
-    }
-  }, [remainingMs, visible]);
+    const start = new Date(targetTimestamp);
+    start.setHours(0, 0, 0, 0);
+    return Math.max(1, targetTimestamp - start.getTime());
+  }, [targetTimestamp]);
 
-  React.useEffect(() => {
-    if (!visible || remainingMs > 0 || typeof window === "undefined") {
-      return;
-    }
-    const storageKey = getStorageKeyForDate(now);
-    const alreadyTriggered = window.localStorage.getItem(storageKey) === "1";
-    if (alreadyTriggered) {
-      return;
-    }
-    window.localStorage.setItem(storageKey, "1");
-    setShowMessage(true);
-    playAlarmSound();
-  }, [now, remainingMs, visible]);
-
-  const progressRatio = Math.min(1, Math.max(0, remainingMs / totalDurationRef.current));
-  const circleRadius = 40;
-  const circumference = 2 * Math.PI * circleRadius;
+  const progressRatio = isValidTarget ? Math.min(1, Math.max(0, remainingMs / totalMs)) : 0;
+  const shouldShowCountdown = isValidTarget && remainingMs <= 60 * 60 * 1000;
+  const timerTitle = activeEvent?.ruleLabel ?? timeTimer.label ?? "Time Timer";
+  const radius = 80;
+  const circumference = 2 * Math.PI * radius;
   const strokeOffset = circumference * (1 - progressRatio);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -152,6 +225,7 @@ export function FloatingSchoolTimeTimer({
     if (!node) {
       return;
     }
+
     const width = node.offsetWidth;
     const height = node.offsetHeight;
     const maxX = Math.max(12, window.innerWidth - width - 12);
@@ -169,7 +243,22 @@ export function FloatingSchoolTimeTimer({
     event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
-  if (!visible || !position) {
+  async function handleAcknowledge(): Promise<void> {
+    if (!activeEvent) {
+      return;
+    }
+
+    const result = await acknowledgeAlarmEventAction({ eventId: activeEvent.id });
+    if (!result.success) {
+      setFeedback(result.error ?? "Impossible d'acquitter ce Time Timer.");
+      return;
+    }
+
+    setActiveEvent(null);
+    void refreshData();
+  }
+
+  if (!visible || !position || (!shouldShowCountdown && !activeEvent && !feedback)) {
     return null;
   }
 
@@ -177,49 +266,69 @@ export function FloatingSchoolTimeTimer({
     <>
       <div
         ref={containerRef}
-        className="fixed z-40 w-56 rounded-2xl border border-brand-200 bg-white/95 p-3 shadow-floating backdrop-blur"
+        className="fixed z-40 w-60 rounded-2xl border-2 border-orange-200 bg-white p-3 shadow-floating"
         style={{ left: position.x, top: position.y, touchAction: "none" }}
       >
         <div
-          className="mb-2 cursor-move rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-800"
+          className="mb-2 cursor-move rounded-lg bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-800"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          Time Timer ecole
+          Time Timer
         </div>
 
-        <div className="flex items-center gap-3">
-          <svg viewBox="0 0 100 100" className="h-20 w-20">
-            <circle cx="50" cy="50" r={circleRadius} fill="none" stroke="#E5E7EB" strokeWidth="10" />
+        <div className="mb-3 rounded-xl border border-border-muted bg-surface-elevated px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Programme</p>
+          <p className="truncate text-sm font-bold text-text-primary">{timerTitle}</p>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+            <circle cx="110" cy="110" r="98" fill="none" stroke="#fbcfe8" strokeWidth="1.5" />
+            <circle cx="110" cy="110" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="14" />
             <circle
-              cx="50"
-              cy="50"
-              r={circleRadius}
+              cx="110"
+              cy="110"
+              r={radius}
               fill="none"
-              stroke="#2563EB"
-              strokeWidth="10"
+              stroke="#f97316"
+              strokeWidth="14"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={strokeOffset}
-              transform="rotate(-90 50 50)"
+              transform="rotate(-90 110 110)"
+              style={{ transition: "stroke-dashoffset 220ms linear" }}
             />
+            <text
+              x="110"
+              y="114"
+              textAnchor="middle"
+              style={{ fontSize: 36, fontWeight: 800, fill: "rgb(30, 41, 59)" }}
+            >
+              {formatTimerLabel(remainingSeconds)}
+            </text>
+            <text x="110" y="142" textAnchor="middle" style={{ fontSize: 13, fill: "rgb(71, 85, 105)" }}>
+              {shouldShowCountdown ? "En cours" : "En attente"}
+            </text>
           </svg>
-          <div>
-            <p className="text-xs text-text-secondary">Jusqu&apos;a 07:40</p>
-            <p className="font-mono text-lg font-bold text-text-primary">{formatDuration(remainingSeconds)}</p>
-          </div>
         </div>
       </div>
 
-      {showMessage ? (
+      {activeEvent ? (
         <div className="fixed inset-x-4 bottom-4 z-50 mx-auto w-full max-w-xl rounded-2xl border border-orange-200 bg-orange-50 p-4 shadow-floating">
-          <p className="text-sm font-semibold text-orange-900">{ALARM_TEXT}</p>
+          <p className="text-sm font-semibold text-orange-900">{activeEvent.ruleMessage}</p>
           <div className="mt-3">
-            <Button size="sm" onClick={() => setShowMessage(false)}>
-              OK
+            <Button size="sm" onClick={() => void handleAcknowledge()}>
+              J&apos;ai compris
             </Button>
           </div>
+        </div>
+      ) : null}
+
+      {feedback ? (
+        <div className="fixed inset-x-4 top-4 z-50 mx-auto w-full max-w-xl rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-floating">
+          {feedback}
         </div>
       ) : null}
     </>

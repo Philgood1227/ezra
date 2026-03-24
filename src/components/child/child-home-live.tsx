@@ -95,7 +95,7 @@ export function ChildHomeLive({
     date,
     data,
   });
-  const showSchoolTimer = isViewingToday && data.dayPeriod === "ecole";
+  const showSchoolTimer = isViewingToday;
 
   return (
     <section

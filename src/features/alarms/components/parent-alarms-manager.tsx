@@ -41,6 +41,7 @@ interface ParentAlarmsManagerProps {
   childName: string;
   rules: AlarmRuleSummary[];
   events: AlarmEventWithRule[];
+  ruleKind?: "alarm" | "time_timer";
 }
 
 interface AlarmDraft {
@@ -152,6 +153,7 @@ export function ParentAlarmsManager({
   childName,
   rules,
   events,
+  ruleKind = "alarm",
 }: ParentAlarmsManagerProps): React.JSX.Element {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -207,16 +209,34 @@ export function ParentAlarmsManager({
     const payload = toAlarmInput(draft);
 
     startTransition(async () => {
+      const requestPayload = { ...payload, ruleKind };
       const result = editingRuleId
-        ? await updateAlarmRuleAction(editingRuleId, payload)
-        : await createAlarmRuleAction(payload);
+        ? await updateAlarmRuleAction(editingRuleId, requestPayload)
+        : await createAlarmRuleAction(requestPayload);
 
       if (!result.success) {
-        showFeedback({ tone: "error", message: result.error ?? "Impossible d'enregistrer l'alarme." });
+        showFeedback({
+          tone: "error",
+          message:
+            result.error ??
+            (ruleKind === "time_timer"
+              ? "Impossible d'enregistrer le Time Timer."
+              : "Impossible d'enregistrer l'alarme."),
+        });
         return;
       }
 
-      showFeedback({ tone: "success", message: editingRuleId ? "Alarme modifiee." : "Alarme creee." });
+      showFeedback({
+        tone: "success",
+        message:
+          editingRuleId
+            ? ruleKind === "time_timer"
+              ? "Time Timer modifie."
+              : "Alarme modifiee."
+            : ruleKind === "time_timer"
+              ? "Time Timer cree."
+              : "Alarme creee.",
+      });
       resetDraft();
       router.refresh();
     });
@@ -282,11 +302,14 @@ export function ParentAlarmsManager({
     <div className="space-y-4">
       <Card surface="child">
         <CardHeader>
-          <CardTitle>Vue rapide alarmes - {childName}</CardTitle>
+          <CardTitle>
+            {ruleKind === "time_timer" ? "Vue rapide Time Timers" : "Vue rapide alarmes"} - {childName}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-3">
           <p className="rounded-radius-button bg-bg-surface-hover/70 px-3 py-2 text-sm text-text-secondary">
-            Alarmes actives: <span className="font-semibold text-text-primary">{activeRulesCount}</span>
+            {ruleKind === "time_timer" ? "Time Timers actifs" : "Alarmes actives"}:{" "}
+            <span className="font-semibold text-text-primary">{activeRulesCount}</span>
           </p>
           <p className="rounded-radius-button bg-bg-surface-hover/70 px-3 py-2 text-sm text-text-secondary">
             Total regles: <span className="font-semibold text-text-primary">{rules.length}</span>
@@ -302,7 +325,14 @@ export function ParentAlarmsManager({
       <Card surface="glass">
         <CardHeader>
           <CardTitle>
-            {editingRuleId ? "Modifier une alarme" : "Nouvelle alarme"} pour {childName}
+            {editingRuleId
+              ? ruleKind === "time_timer"
+                ? "Modifier un Time Timer"
+                : "Modifier une alarme"
+              : ruleKind === "time_timer"
+                ? "Nouveau Time Timer"
+                : "Nouvelle alarme"}{" "}
+            pour {childName}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -321,7 +351,7 @@ export function ParentAlarmsManager({
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, label: event.target.value }))
                   }
-                  placeholder="Reveil ecole"
+                  placeholder={ruleKind === "time_timer" ? "Preparation matin" : "Reveil ecole"}
                   required
                 />
               </div>
@@ -435,7 +465,7 @@ export function ParentAlarmsManager({
 
             <div className="space-y-1">
               <label htmlFor="alarm-message" className="text-sm font-semibold text-text-secondary">
-                Message affiche en grand
+                  Message affiche en grand
               </label>
               <TextArea
                 id="alarm-message"
@@ -451,7 +481,11 @@ export function ParentAlarmsManager({
 
             <div className="flex flex-wrap gap-2">
               <Button type="submit" variant="premium" loading={isPending}>
-                {editingRuleId ? "Enregistrer les modifications" : "Creer l'alarme"}
+                {editingRuleId
+                  ? "Enregistrer les modifications"
+                  : ruleKind === "time_timer"
+                    ? "Creer le Time Timer"
+                    : "Creer l'alarme"}
               </Button>
               {editingRuleId ? (
                 <Button

@@ -7,7 +7,13 @@ import type {
   AlarmRuleInput,
   AlarmRuleSummary,
 } from "@/lib/day-templates/types";
-import { getModeDaysMask, sanitizeDaysMask } from "@/lib/domain/alarms";
+import {
+  decodeAlarmRuleLabel,
+  encodeAlarmRuleLabelByKind,
+  getModeDaysMask,
+  parseAlarmRuleKindFromLabel,
+  sanitizeDaysMask,
+} from "@/lib/domain/alarms";
 
 interface DemoAlarmRuleRecord {
   id: string;
@@ -102,11 +108,13 @@ function getStore(familyId: string): DemoAlarmsStore {
 }
 
 function mapRule(record: DemoAlarmRuleRecord): AlarmRuleSummary {
+  const ruleKind = parseAlarmRuleKindFromLabel(record.label);
   return {
     id: record.id,
     familyId: record.familyId,
     childProfileId: record.childProfileId,
-    label: record.label,
+    ruleKind,
+    label: decodeAlarmRuleLabel(record.label),
     mode: record.mode,
     oneShotAt: record.oneShotAt,
     timeOfDay: record.timeOfDay,
@@ -134,8 +142,10 @@ function mapEvent(record: DemoAlarmEventRecord): AlarmEventSummary {
 }
 
 function normalizeRuleInput(input: AlarmRuleInput): AlarmRuleInput {
+  const ruleKind = input.ruleKind ?? "alarm";
   return {
-    label: input.label.trim(),
+    ruleKind,
+    label: encodeAlarmRuleLabelByKind(input.label.trim(), ruleKind),
     mode: input.mode,
     oneShotAt: input.mode === "ponctuelle" ? input.oneShotAt : null,
     timeOfDay:

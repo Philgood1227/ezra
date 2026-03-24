@@ -27,6 +27,7 @@ const NAV_ITEMS: ParentV2NavItem[] = [
   { id: "fiches", href: "/parent-v2/fiches", label: "Fiches" },
   { id: "calendar", href: "/parent-v2/calendar", label: "Calendrier" },
   { id: "alarms", href: "/parent-v2/alarms", label: "Alarmes" },
+  { id: "time-timer", href: "/parent-v2/time-timer", label: "Time Timer" },
   { id: "rewards", href: "/parent-v2/rewards", label: "Recompenses" },
   { id: "settings", href: "/parent-v2/settings", label: "Parametres" },
 ];
@@ -287,6 +288,15 @@ function NavIcon({
           strokeLinecap="round"
           strokeWidth="1.8"
         />
+      </svg>
+    );
+  }
+
+  if (itemId === "time-timer") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M12 12 12 7M12 12l3.5 2" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
       </svg>
     );
   }

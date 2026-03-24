@@ -6,6 +6,7 @@ import {
   listDemoAlarmRules,
 } from "@/lib/demo/alarms-store";
 import type { AlarmEventWithRule, AlarmRuleSummary } from "@/lib/day-templates/types";
+import { decodeAlarmRuleLabel, parseAlarmRuleKindFromLabel } from "@/lib/domain/alarms";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -25,11 +26,13 @@ function shouldUseAdminClientForChildPin(
 }
 
 function mapAlarmRule(row: AlarmRuleRow): AlarmRuleSummary {
+  const ruleKind = parseAlarmRuleKindFromLabel(row.label);
   return {
     id: row.id,
     familyId: row.family_id,
     childProfileId: row.child_profile_id,
-    label: row.label,
+    ruleKind,
+    label: decodeAlarmRuleLabel(row.label),
     mode: row.mode,
     oneShotAt: row.one_shot_at,
     timeOfDay: row.time_of_day,
@@ -158,6 +161,16 @@ export async function getParentAlarmPageData(): Promise<{
   rules: AlarmRuleSummary[];
   events: AlarmEventWithRule[];
 }> {
+  return getParentAlarmPageDataByKind("alarm");
+}
+
+export async function getParentAlarmPageDataByKind(
+  ruleKind: "alarm" | "time_timer",
+): Promise<{
+  child: ChildProfileRef | null;
+  rules: AlarmRuleSummary[];
+  events: AlarmEventWithRule[];
+}> {
   const context = await getCurrentProfile();
   if (!context.familyId) {
     return { child: null, rules: [], events: [] };
@@ -169,30 +182,36 @@ export async function getParentAlarmPageData(): Promise<{
   }
 
   if (!isSupabaseEnabled()) {
+    const allRules = listDemoAlarmRules(context.familyId, child.id);
+    const filteredRules = allRules.filter((rule) => (rule.ruleKind ?? "alarm") === ruleKind);
     return {
       child,
-      rules: listDemoAlarmRules(context.familyId, child.id),
+      rules: filteredRules,
       events: listDemoEventsWithRules({
         familyId: context.familyId,
         childProfileId: child.id,
         includeAcknowledged: true,
         limit: 20,
-      }),
+      }).filter((eventItem) =>
+        filteredRules.some((rule) => rule.id === eventItem.alarmRuleId),
+      ),
     };
   }
 
-  const rules = await listSupabaseRulesForChild({
+  const allRules = await listSupabaseRulesForChild({
     familyId: context.familyId,
     childProfileId: child.id,
     useAdminClient: false,
   });
-  const events = await listSupabaseEventsForChild({
+  const rules = allRules.filter((rule) => (rule.ruleKind ?? "alarm") === ruleKind);
+  const supabaseEvents = await listSupabaseEventsForChild({
     familyId: context.familyId,
     childProfileId: child.id,
     includeAcknowledged: true,
     limit: 20,
     useAdminClient: false,
   });
+  const events = supabaseEvents.filter((eventItem) => rules.some((rule) => rule.id === eventItem.alarmRuleId));
 
   return {
     child,
@@ -202,23 +221,38 @@ export async function getParentAlarmPageData(): Promise<{
 }
 
 export async function getAlarmRulesForCurrentChild(): Promise<AlarmRuleSummary[]> {
+  return getAlarmRulesForCurrentChildByKind("alarm");
+}
+
+export async function getAlarmRulesForCurrentChildByKind(
+  ruleKind: "alarm" | "time_timer",
+): Promise<AlarmRuleSummary[]> {
   const context = await getCurrentProfile();
   if (!context.familyId || context.role !== "child" || !context.profile?.id) {
     return [];
   }
 
   if (!isSupabaseEnabled()) {
-    return listDemoAlarmRules(context.familyId, context.profile.id);
+    return listDemoAlarmRules(context.familyId, context.profile.id).filter(
+      (rule) => (rule.ruleKind ?? "alarm") === ruleKind,
+    );
   }
 
-  return listSupabaseRulesForChild({
+  return (await listSupabaseRulesForChild({
     familyId: context.familyId,
     childProfileId: context.profile.id,
     useAdminClient: shouldUseAdminClientForChildPin(context),
-  });
+  })).filter((rule) => (rule.ruleKind ?? "alarm") === ruleKind);
 }
 
 export async function getPendingAlarmEventsForCurrentChild(
+  limit = 5,
+): Promise<AlarmEventWithRule[]> {
+  return getPendingAlarmEventsForCurrentChildByKind("alarm", limit);
+}
+
+export async function getPendingAlarmEventsForCurrentChildByKind(
+  ruleKind: "alarm" | "time_timer",
   limit = 5,
 ): Promise<AlarmEventWithRule[]> {
   const context = await getCurrentProfile();
@@ -227,19 +261,28 @@ export async function getPendingAlarmEventsForCurrentChild(
   }
 
   if (!isSupabaseEnabled()) {
+    const rules = listDemoAlarmRules(context.familyId, context.profile.id).filter(
+      (rule) => (rule.ruleKind ?? "alarm") === ruleKind,
+    );
     return listDemoEventsWithRules({
       familyId: context.familyId,
       childProfileId: context.profile.id,
       includeAcknowledged: false,
       limit,
-    });
+    }).filter((eventItem) => rules.some((rule) => rule.id === eventItem.alarmRuleId));
   }
 
-  return listSupabaseEventsForChild({
+  const rules = (await listSupabaseRulesForChild({
+    familyId: context.familyId,
+    childProfileId: context.profile.id,
+    useAdminClient: shouldUseAdminClientForChildPin(context),
+  })).filter((rule) => rule.ruleKind === ruleKind);
+
+  return (await listSupabaseEventsForChild({
     familyId: context.familyId,
     childProfileId: context.profile.id,
     includeAcknowledged: false,
     limit,
     useAdminClient: shouldUseAdminClientForChildPin(context),
-  });
+  })).filter((eventItem) => rules.some((rule) => rule.id === eventItem.alarmRuleId));
 }

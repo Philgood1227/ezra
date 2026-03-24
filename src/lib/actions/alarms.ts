@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
-  getAlarmRulesForCurrentChild,
-  getPendingAlarmEventsForCurrentChild,
+  getAlarmRulesForCurrentChildByKind,
+  getPendingAlarmEventsForCurrentChildByKind,
 } from "@/lib/api/alarms";
 import { getPrimaryChildProfileForCurrentFamily } from "@/lib/api/children";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -15,8 +15,14 @@ import {
   setDemoAlarmRuleEnabled,
   upsertDemoAlarmRule,
 } from "@/lib/demo/alarms-store";
-import type { ActionResult, AlarmRuleInput } from "@/lib/day-templates/types";
-import { getDueAtIsoForRuleNow, getModeDaysMask, sanitizeDaysMask } from "@/lib/domain/alarms";
+import type { ActionResult, AlarmRuleInput, AlarmRuleKind } from "@/lib/day-templates/types";
+import {
+  encodeAlarmRuleLabelByKind,
+  getDueAtIsoForRuleNow,
+  getModeDaysMask,
+  getNextDueAtIsoForRule,
+  sanitizeDaysMask,
+} from "@/lib/domain/alarms";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -110,6 +116,8 @@ interface ParentAlarmContext {
   childProfileId: string;
 }
 
+const ruleKindSchema = z.enum(["alarm", "time_timer"]).default("alarm");
+
 function shouldUseAdminClientForChildPin(
   context: Awaited<ReturnType<typeof getCurrentProfile>>,
 ): boolean {
@@ -120,9 +128,10 @@ function shouldUseAdminClientForChildPin(
   );
 }
 
-function normalizeAlarmInput(input: z.infer<typeof alarmRuleSchema>): AlarmRuleInput {
+function normalizeAlarmInput(input: z.infer<typeof alarmRuleSchema>, ruleKind: AlarmRuleKind): AlarmRuleInput {
   return {
-    label: input.label.trim(),
+    ruleKind,
+    label: encodeAlarmRuleLabelByKind(input.label.trim(), ruleKind),
     mode: input.mode,
     oneShotAt: input.mode === "ponctuelle" ? input.oneShotAt : null,
     timeOfDay:
@@ -138,6 +147,8 @@ function normalizeAlarmInput(input: z.infer<typeof alarmRuleSchema>): AlarmRuleI
 
 function revalidateAlarmPaths(): void {
   revalidatePath("/parent/alarms");
+  revalidatePath("/parent-v2/alarms");
+  revalidatePath("/parent-v2/time-timer");
   revalidatePath("/child");
   revalidatePath("/child/my-day");
 }
@@ -172,7 +183,8 @@ export async function createAlarmRuleAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
   }
 
-  const normalized = normalizeAlarmInput(parsed.data);
+  const ruleKind = ruleKindSchema.parse((payload as { ruleKind?: string } | null)?.ruleKind ?? "alarm");
+  const normalized = normalizeAlarmInput(parsed.data, ruleKind);
 
   if (!isSupabaseEnabled()) {
     const created = upsertDemoAlarmRule(context.familyId, context.childProfileId, normalized);
@@ -223,7 +235,8 @@ export async function updateAlarmRuleAction(
     return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
   }
 
-  const normalized = normalizeAlarmInput(parsed.data);
+  const ruleKind = ruleKindSchema.parse((payload as { ruleKind?: string } | null)?.ruleKind ?? "alarm");
+  const normalized = normalizeAlarmInput(parsed.data, ruleKind);
 
   if (!isSupabaseEnabled()) {
     const updated = upsertDemoAlarmRule(
@@ -399,18 +412,19 @@ async function insertSupabaseAlarmEventIfMissing(input: {
 
 export async function pollDueAlarmEventsAction(
   payload: unknown,
-): Promise<ActionResult<{ events: Awaited<ReturnType<typeof getPendingAlarmEventsForCurrentChild>> }>> {
+): Promise<ActionResult<{ events: Awaited<ReturnType<typeof getPendingAlarmEventsForCurrentChildByKind>> }>> {
   const parsed = pollSchema.safeParse(payload);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
   }
 
+  const ruleKind = ruleKindSchema.parse((payload as { ruleKind?: string } | null)?.ruleKind ?? "alarm");
   const context = await getChildAlarmContext();
   if (!context) {
     return { success: false, error: "Action reservee au profil enfant." };
   }
 
-  const rules = await getAlarmRulesForCurrentChild();
+  const rules = await getAlarmRulesForCurrentChildByKind(ruleKind);
   const dueCandidates = rules
     .filter((rule) => rule.enabled)
     .map((rule) => ({
@@ -445,8 +459,57 @@ export async function pollDueAlarmEventsAction(
     }
   }
 
-  const events = await getPendingAlarmEventsForCurrentChild(5);
+  const events = await getPendingAlarmEventsForCurrentChildByKind(ruleKind, 5);
   return { success: true, data: { events } };
+}
+
+export async function getNextTimeTimerStateAction(
+  payload: unknown,
+): Promise<
+  ActionResult<{
+    dueAtIso: string | null;
+    message: string | null;
+    soundKey: string | null;
+    label: string | null;
+  }>
+> {
+  const parsed = pollSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
+  }
+
+  const rules = await getAlarmRulesForCurrentChildByKind("time_timer");
+  const enabledRules = rules.filter((rule) => rule.enabled);
+  if (enabledRules.length === 0) {
+    return { success: true, data: { dueAtIso: null, message: null, soundKey: null, label: null } };
+  }
+
+  const candidates = enabledRules
+    .map((rule) => ({
+      rule,
+      dueAtIso: getNextDueAtIsoForRule({
+        rule,
+        nowIso: parsed.data.nowIso,
+        timezoneOffsetMinutes: parsed.data.timezoneOffsetMinutes,
+      }),
+    }))
+    .filter((entry): entry is { rule: (typeof enabledRules)[number]; dueAtIso: string } => Boolean(entry.dueAtIso))
+    .sort((left, right) => left.dueAtIso.localeCompare(right.dueAtIso));
+
+  const next = candidates[0];
+  if (!next) {
+    return { success: true, data: { dueAtIso: null, message: null, soundKey: null, label: null } };
+  }
+
+  return {
+    success: true,
+    data: {
+      dueAtIso: next.dueAtIso,
+      message: next.rule.message,
+      soundKey: next.rule.soundKey,
+      label: next.rule.label,
+    },
+  };
 }
 
 export async function acknowledgeAlarmEventAction(payload: unknown): Promise<ActionResult> {
