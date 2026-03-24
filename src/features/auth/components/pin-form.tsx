@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,10 @@ export function PinForm(): React.JSX.Element {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading) {
+      return;
+    }
+
     setState(emptyFormState());
 
     const formData = new FormData(event.currentTarget);
@@ -37,12 +41,22 @@ export function PinForm(): React.JSX.Element {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
-      const body = (await response.json()) as { error?: string; redirectTo?: string };
+
+      const textBody = await response.text();
+      let body: { error?: string; redirectTo?: string } = {};
+      if (textBody) {
+        try {
+          body = JSON.parse(textBody) as { error?: string; redirectTo?: string };
+        } catch {
+          body = { error: textBody };
+        }
+      }
 
       if (!response.ok) {
         setState({
           fieldErrors: {},
-          formError: body.error ?? "Connexion enfant impossible pour le moment.",
+          formError:
+            body.error ?? `Connexion enfant impossible pour le moment (HTTP ${response.status}).`,
         });
         return;
       }
@@ -69,7 +83,7 @@ export function PinForm(): React.JSX.Element {
 
       <div className="space-y-1">
         <label htmlFor="childName" className="text-sm font-semibold text-ink-muted">
-          Prénom de l&apos;enfant
+          Prenom de l&apos;enfant
         </label>
         <Input id="childName" name="childName" placeholder="Ezra" />
         {state.fieldErrors.childName ? (
@@ -87,11 +101,9 @@ export function PinForm(): React.JSX.Element {
           type="password"
           inputMode="numeric"
           maxLength={8}
-          placeholder="4 à 8 chiffres"
+          placeholder="4 a 8 chiffres"
         />
-        {state.fieldErrors.pin ? (
-          <p className="text-sm text-danger">{state.fieldErrors.pin}</p>
-        ) : null}
+        {state.fieldErrors.pin ? <p className="text-sm text-danger">{state.fieldErrors.pin}</p> : null}
       </div>
 
       {state.formError ? (
@@ -105,7 +117,7 @@ export function PinForm(): React.JSX.Element {
       <p className="text-center text-sm text-ink-muted">
         Compte parent ?{" "}
         <Link href="/auth/login" className="font-semibold text-accent-700 hover:underline">
-          Aller à la connexion
+          Aller a la connexion
         </Link>
       </p>
     </form>
