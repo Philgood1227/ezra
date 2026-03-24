@@ -8,6 +8,7 @@ import {
   TodayHeader,
   TodayRewards,
 } from "@/components/child/today";
+import { FloatingSchoolTimeTimer } from "@/components/child/floating-school-time-timer";
 import { Card, CardContent, Skeleton } from "@/components/ds";
 import type { ChildHomeData } from "@/lib/api/child-home";
 import { useCurrentTime } from "@/lib/hooks/useCurrentTime";
@@ -94,12 +95,14 @@ export function ChildHomeLive({
     date,
     data,
   });
+  const showSchoolTimer = isViewingToday && data.dayPeriod === "ecole";
 
   return (
     <section
       className="child-home-layout w-full space-y-[var(--page-section-gap)] pb-4"
       data-testid="child-home-layout"
     >
+      <FloatingSchoolTimeTimer visible={showSchoolTimer} />
       <TodayHeader
         date={date}
         timezone={timezone}

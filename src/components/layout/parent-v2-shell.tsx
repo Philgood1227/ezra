@@ -26,6 +26,7 @@ const NAV_ITEMS: ParentV2NavItem[] = [
   { id: "conjugaison", href: "/parent-v2/conjugaison", label: "Conjugaison" },
   { id: "fiches", href: "/parent-v2/fiches", label: "Fiches" },
   { id: "calendar", href: "/parent-v2/calendar", label: "Calendrier" },
+  { id: "alarms", href: "/parent-v2/alarms", label: "Alarmes" },
   { id: "rewards", href: "/parent-v2/rewards", label: "Recompenses" },
   { id: "settings", href: "/parent-v2/settings", label: "Parametres" },
 ];
@@ -264,6 +265,27 @@ function NavIcon({
           stroke="currentColor"
           strokeLinecap="round"
           strokeWidth="1.5"
+        />
+      </svg>
+    );
+  }
+
+  if (itemId === "alarms") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+        <path
+          d="M12 4.5a6 6 0 0 1 6 6v3.1l1.3 2.2c.3.5 0 1.2-.6 1.2H5.3c-.6 0-.9-.7-.6-1.2L6 13.6v-3.1a6 6 0 0 1 6-6Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9.5 18.2a2.5 2.5 0 0 0 5 0"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.8"
         />
       </svg>
     );
