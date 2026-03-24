@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,10 @@ export function SetPinForm(): React.JSX.Element {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading) {
+      return;
+    }
+
     setState(emptyFormState());
     setSuccessMessage(null);
 
@@ -40,6 +44,7 @@ export function SetPinForm(): React.JSX.Element {
       const body = (await response.json()) as { error?: string; message?: string };
 
       if (!response.ok) {
+        setSuccessMessage(null);
         setState({
           fieldErrors: {},
           formError: body.error ?? "Impossible d'enregistrer le PIN enfant.",
@@ -47,10 +52,12 @@ export function SetPinForm(): React.JSX.Element {
         return;
       }
 
-      setSuccessMessage(body.message ?? "PIN enfant enregistré.");
+      setState(emptyFormState());
+      setSuccessMessage(body.message ?? "PIN enfant enregistre.");
       event.currentTarget.reset();
       router.refresh();
     } catch {
+      setSuccessMessage(null);
       setState({ fieldErrors: {}, formError: "Impossible d'enregistrer le PIN enfant." });
     } finally {
       setIsLoading(false);
@@ -61,7 +68,7 @@ export function SetPinForm(): React.JSX.Element {
     <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <div className="space-y-1">
         <label htmlFor="childName" className="text-sm font-semibold text-ink-muted">
-          Prénom de l&apos;enfant
+          Prenom de l&apos;enfant
         </label>
         <Input id="childName" name="childName" placeholder="Ezra" />
         {state.fieldErrors.childName ? (
@@ -79,7 +86,7 @@ export function SetPinForm(): React.JSX.Element {
           type="password"
           inputMode="numeric"
           maxLength={8}
-          placeholder="4 à 8 chiffres"
+          placeholder="4 a 8 chiffres"
         />
         {state.fieldErrors.pin ? (
           <p className="text-sm text-danger">{state.fieldErrors.pin}</p>
