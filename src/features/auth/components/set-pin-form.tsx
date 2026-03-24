@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Input } from "@/components/ds";
 import { emptyFormState, type FormSubmitState } from "@/features/auth/form-state";
 import { pinConfigSchema } from "@/features/auth/schemas";
 import { toFieldErrors } from "@/features/auth/zod-errors";
 
 export function SetPinForm(): React.JSX.Element {
+  const router = useRouter();
   const [state, setState] = useState<FormSubmitState>(emptyFormState());
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export function SetPinForm(): React.JSX.Element {
 
       setSuccessMessage(body.message ?? "PIN enfant enregistré.");
       event.currentTarget.reset();
+      router.refresh();
     } catch {
       setState({ fieldErrors: {}, formError: "Impossible d'enregistrer le PIN enfant." });
     } finally {
