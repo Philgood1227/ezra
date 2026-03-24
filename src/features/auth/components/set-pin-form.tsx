@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import * as React from "react";
 import { Button, Input } from "@/components/ds";
 import { emptyFormState, type FormSubmitState } from "@/features/auth/form-state";
 import { pinConfigSchema } from "@/features/auth/schemas";
@@ -9,15 +10,17 @@ import { toFieldErrors } from "@/features/auth/zod-errors";
 
 export function SetPinForm(): React.JSX.Element {
   const router = useRouter();
+  const inFlightRef = React.useRef(false);
   const [state, setState] = useState<FormSubmitState>(emptyFormState());
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isLoading) {
+    if (isLoading || inFlightRef.current) {
       return;
     }
+    inFlightRef.current = true;
 
     setState(emptyFormState());
     setSuccessMessage(null);
@@ -61,6 +64,7 @@ export function SetPinForm(): React.JSX.Element {
       setState({ fieldErrors: {}, formError: "Impossible d'enregistrer le PIN enfant." });
     } finally {
       setIsLoading(false);
+      inFlightRef.current = false;
     }
   }
 

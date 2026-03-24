@@ -126,7 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (updateError) {
     return NextResponse.json(
-      { error: "Impossible d'enregistrer le PIN enfant pour le moment." },
+      { error: `Impossible d'enregistrer le PIN enfant pour le moment. (${updateError.message})` },
       { status: 500 },
     );
   }
