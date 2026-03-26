@@ -56,16 +56,16 @@ function formatTimerLabel(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function playAlarmSound(soundKey: string | null): void {
+function playAlarmSound(soundKey: string | null): number {
   const pattern = SOUND_PATTERNS[soundKey ?? "cloche_douce"] ?? SOUND_PATTERNS.cloche_douce;
   if (!pattern || typeof window === "undefined") {
-    return;
+    return 0;
   }
 
   const browserWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
   const AudioContextCtor = globalThis.AudioContext ?? browserWindow.webkitAudioContext;
   if (!AudioContextCtor) {
-    return;
+    return 0;
   }
 
   const context = new AudioContextCtor();
@@ -94,6 +94,35 @@ function playAlarmSound(soundKey: string | null): void {
   window.setTimeout(() => {
     void context.close().catch(() => undefined);
   }, Math.ceil((cursor - context.currentTime) * 1000) + 400);
+
+  return pattern.reduce((total, step) => total + step.durationMs + step.gapMs, 0);
+}
+
+function startPersistentAlarmSound(soundKey: string | null): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  let stopped = false;
+  let timeoutId: number | null = null;
+
+  const loop = (): void => {
+    if (stopped) {
+      return;
+    }
+    const patternDurationMs = playAlarmSound(soundKey);
+    const nextDelayMs = Math.max(1200, patternDurationMs + 180);
+    timeoutId = window.setTimeout(loop, nextDelayMs);
+  };
+
+  loop();
+
+  return () => {
+    stopped = true;
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+  };
 }
 
 export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProps): React.JSX.Element | null {
@@ -111,6 +140,7 @@ export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProp
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const dragRef = React.useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const playedEventIdsRef = React.useRef<Set<string>>(new Set<string>());
+  const stopSoundRef = React.useRef<(() => void) | null>(null);
 
   const refreshData = React.useCallback(async () => {
     const payload = {
@@ -166,6 +196,8 @@ export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProp
 
   React.useEffect(() => {
     if (!activeEvent) {
+      stopSoundRef.current?.();
+      stopSoundRef.current = null;
       return;
     }
 
@@ -174,8 +206,16 @@ export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProp
     }
 
     playedEventIdsRef.current.add(activeEvent.id);
-    playAlarmSound(activeEvent.ruleSoundKey);
+    stopSoundRef.current?.();
+    stopSoundRef.current = startPersistentAlarmSound(activeEvent.ruleSoundKey);
   }, [activeEvent]);
+
+  React.useEffect(() => {
+    return () => {
+      stopSoundRef.current?.();
+      stopSoundRef.current = null;
+    };
+  }, []);
 
   const dueAtIso = activeEvent?.dueAt ?? timeTimer.dueAtIso;
   const targetTimestamp = React.useMemo(() => {
@@ -238,6 +278,8 @@ export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProp
     if (!activeEvent) {
       return;
     }
+    stopSoundRef.current?.();
+    stopSoundRef.current = null;
 
     const result = await acknowledgeAlarmEventAction({ eventId: activeEvent.id });
     if (!result.success) {

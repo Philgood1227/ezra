@@ -37,20 +37,20 @@ const SOUND_PATTERNS: Record<string, SoundStep[]> = {
   ],
 };
 
-function playAlarmSound(soundKey: string): void {
+function playAlarmSound(soundKey: string): number {
   const pattern = SOUND_PATTERNS[soundKey] ?? SOUND_PATTERNS.cloche_douce;
   if (!pattern) {
-    return;
+    return 0;
   }
 
   if (typeof window === "undefined") {
-    return;
+    return 0;
   }
 
   const browserWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
   const AudioContextCtor = globalThis.AudioContext ?? browserWindow.webkitAudioContext;
   if (!AudioContextCtor) {
-    return;
+    return 0;
   }
 
   const context = new AudioContextCtor();
@@ -79,6 +79,35 @@ function playAlarmSound(soundKey: string): void {
   window.setTimeout(() => {
     void context.close().catch(() => undefined);
   }, Math.ceil((cursor - context.currentTime) * 1000) + 400);
+
+  return pattern.reduce((total, step) => total + step.durationMs + step.gapMs, 0);
+}
+
+function startPersistentAlarmSound(soundKey: string): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  let stopped = false;
+  let timeoutId: number | null = null;
+
+  const loop = (): void => {
+    if (stopped) {
+      return;
+    }
+    const patternDurationMs = playAlarmSound(soundKey);
+    const nextDelayMs = Math.max(1200, patternDurationMs + 180);
+    timeoutId = window.setTimeout(loop, nextDelayMs);
+  };
+
+  loop();
+
+  return () => {
+    stopped = true;
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+  };
 }
 
 export function ChildAlarmCenter(): React.JSX.Element | null {
@@ -86,6 +115,7 @@ export function ChildAlarmCenter(): React.JSX.Element | null {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const playedEventIdsRef = useRef<Set<string>>(new Set<string>());
+  const stopSoundRef = useRef<(() => void) | null>(null);
 
   const poll = useCallback(async () => {
     const result = await pollDueAlarmEventsAction({
@@ -117,6 +147,8 @@ export function ChildAlarmCenter(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!activeEvent) {
+      stopSoundRef.current?.();
+      stopSoundRef.current = null;
       return;
     }
 
@@ -125,11 +157,21 @@ export function ChildAlarmCenter(): React.JSX.Element | null {
     }
 
     playedEventIdsRef.current.add(activeEvent.id);
-    playAlarmSound(activeEvent.ruleSoundKey);
+    stopSoundRef.current?.();
+    stopSoundRef.current = startPersistentAlarmSound(activeEvent.ruleSoundKey);
   }, [activeEvent]);
+
+  useEffect(() => {
+    return () => {
+      stopSoundRef.current?.();
+      stopSoundRef.current = null;
+    };
+  }, []);
 
   function handleAcknowledge(eventId: string): void {
     setFeedback(null);
+    stopSoundRef.current?.();
+    stopSoundRef.current = null;
 
     startTransition(async () => {
       const result = await acknowledgeAlarmEventAction({ eventId });
