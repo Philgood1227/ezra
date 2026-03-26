@@ -4,7 +4,12 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { splitMissionInstructionsHtml } from "@/lib/day-templates/instructions";
 import { cn } from "@/lib/utils";
-import { resolveMissionCategory, type MissionCategory } from "./mission-category";
+import {
+  getMissionCategoryDisplayLabel,
+  getMissionSubjectLabel,
+  resolveMissionCategory,
+  type MissionCategory,
+} from "./mission-category";
 import type { MissionUI } from "./types";
 import { useMissionsToday } from "./useMissionsToday";
 
@@ -299,8 +304,22 @@ function getDrawerMissionEmoji(mission: MissionUI, fallbackEmoji: string): strin
 }
 
 function resolveDrawerSubkindLabel(mission: MissionUI): string | null {
-  const rawSubkind = mission.itemSubkind?.trim();
-  return rawSubkind && rawSubkind.length > 0 ? rawSubkind : null;
+  return getMissionSubjectLabel({
+    title: mission.title,
+    itemSubkind: mission.itemSubkind,
+    categoryName: mission.categoryName,
+  });
+}
+
+function resolveCategoryDisplayLabel(category: MissionCategory, mission: MissionUI | null): string {
+  const subject = mission
+    ? getMissionSubjectLabel({
+        title: mission.title,
+        itemSubkind: mission.itemSubkind,
+        categoryName: mission.categoryName,
+      })
+    : null;
+  return getMissionCategoryDisplayLabel(category, subject);
 }
 
 function buildCategorySummaries(missions: MissionUI[]): CategorySummary[] {
@@ -834,6 +853,7 @@ function MissionsCategoryDrawer({
   const completionPercent = toPercent(summary.completed, summary.total);
   const remainingTasks = Math.max(0, summary.total - summary.completed);
   const totalMinutesLabel = formatSummaryMinutesValue(summary.totalMinutes);
+  const categoryDisplayLabel = resolveCategoryDisplayLabel(summary.category, summary.missions[0] ?? null);
 
   return (
     <section className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-[3px]" data-testid="missions-category-drawer-overlay" onClick={onClose}>
@@ -851,7 +871,7 @@ function MissionsCategoryDrawer({
         }}
         onClick={(event) => event.stopPropagation()}
         data-testid="missions-category-drawer"
-        aria-label={`Drawer ${summary.theme.label}`}
+        aria-label={`Drawer ${categoryDisplayLabel}`}
       >
         <header className={cn("border-b bg-indigo-50 px-6 py-5", summary.theme.drawerBorderClass)}>
           <div className="flex items-center justify-between">
@@ -862,7 +882,7 @@ function MissionsCategoryDrawer({
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-widest text-gray-500">Catégorie</p>
                 <p className={cn("text-2xl font-extrabold", summary.theme.accentClass)}>
-                  {summary.theme.label}
+                  {categoryDisplayLabel}
                 </p>
               </div>
             </div>
@@ -1146,7 +1166,11 @@ function MissionTaskModal({
   const totalSteps = checklistSteps.length;
   const stepProgressPercent = toPercent(checkedCount, totalSteps);
   const missionDurationMinutes = computeDurationMinutes(mission.startTime, mission.endTime, mission.estimatedMinutes);
-  const missionSubkind = mission.itemSubkind?.trim() ? mission.itemSubkind.trim() : null;
+  const missionSubkind = getMissionSubjectLabel({
+    title: mission.title,
+    itemSubkind: mission.itemSubkind,
+    categoryName: mission.categoryName,
+  });
   const missionEmoji = getDrawerMissionEmoji(mission, categoryTheme.emoji);
   const tipText = React.useMemo(() => {
     if (!sections.tipHtml) {
@@ -1727,7 +1751,7 @@ export function MissionsSummaryCard({
                     setSelectedMissionId(null);
                   }}
                   data-testid={`missions-summary-category-${summary.category}`}
-                  aria-label={`Ouvrir ${summary.theme.label}`}
+                  aria-label={`Ouvrir ${resolveCategoryDisplayLabel(summary.category, summary.missions[0] ?? null)}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-white rounded-xl p-2 shadow-sm">
@@ -1735,7 +1759,9 @@ export function MissionsSummaryCard({
                     </div>
                     <div className="flex-1">
                       <div className="mb-1 flex items-center justify-between">
-                        <h3 className="font-extrabold text-gray-900">{summary.theme.label}</h3>
+                        <h3 className="font-extrabold text-gray-900">
+                          {resolveCategoryDisplayLabel(summary.category, summary.missions[0] ?? null)}
+                        </h3>
                         <span className="text-sm font-semibold text-gray-600">
                           {summary.completed} / {summary.total}
                         </span>
@@ -1778,7 +1804,7 @@ export function MissionsSummaryCard({
               {selectedMission && activeCategorySummary ? (
                 <MissionTaskModal
                   mission={selectedMission}
-                  categoryLabel={activeCategorySummary.theme.label}
+                  categoryLabel={resolveCategoryDisplayLabel(activeCategorySummary.category, selectedMission)}
                   categoryTheme={activeCategorySummary.theme}
                   isPending={pendingMissionId === selectedMission.id}
                   onBack={() => setSelectedMissionId(null)}

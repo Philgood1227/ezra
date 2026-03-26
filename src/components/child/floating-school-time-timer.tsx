@@ -189,18 +189,9 @@ export function FloatingSchoolTimeTimer({ visible }: FloatingSchoolTimeTimerProp
 
   const remainingMs = isValidTarget ? Math.max(0, targetTimestamp - now.getTime()) : 0;
   const remainingSeconds = Math.ceil(remainingMs / 1000);
-
-  const totalMs = React.useMemo(() => {
-    if (targetTimestamp === null) {
-      return 1;
-    }
-    const start = new Date(targetTimestamp);
-    start.setHours(0, 0, 0, 0);
-    return Math.max(1, targetTimestamp - start.getTime());
-  }, [targetTimestamp]);
-
-  const progressRatio = isValidTarget ? Math.min(1, Math.max(0, remainingMs / totalMs)) : 0;
-  const shouldShowCountdown = isValidTarget && remainingMs <= 60 * 60 * 1000;
+  const countdownWindowMs = 60 * 60 * 1000;
+  const progressRatio = isValidTarget ? Math.min(1, Math.max(0, remainingMs / countdownWindowMs)) : 0;
+  const shouldShowCountdown = isValidTarget && remainingMs <= countdownWindowMs;
   const timerTitle = activeEvent?.ruleLabel ?? timeTimer.label ?? "Time Timer";
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
