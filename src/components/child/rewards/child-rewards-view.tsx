@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { claimRewardAction } from "@/lib/actions/reward-claims";
+import { claimRewardAction, consumeRewardAction } from "@/lib/actions/reward-claims";
 import { Button, Modal, useToast } from "@/components/ds";
 import type { RewardTierSummary } from "@/lib/day-templates/types";
 import { cn } from "@/lib/utils";
@@ -62,7 +62,7 @@ const REWARDS_TABS: RewardsTabConfig[] = [
   },
   {
     key: "history",
-    label: "Deja eues",
+    label: "Mon tresor",
     triggerIdSuffix: "used",
     panelIdSuffix: "used",
     triggerActiveClassName: "data-[state=active]:bg-purple-500 data-[state=active]:text-white",
@@ -293,9 +293,11 @@ export function ChildRewardsView({
     Math.max(0, Math.trunc(initialAvailableStars)),
   );
   const [rewardHistory, setRewardHistory] = React.useState<RewardHistoryState>(initialRewardHistory);
+  const [quantityDraftByRewardId, setQuantityDraftByRewardId] = React.useState<Record<string, number>>({});
   const [pendingReward, setPendingReward] = React.useState<RewardCardModel | null>(null);
   const [celebrationMessage, setCelebrationMessage] = React.useState<string | null>(null);
   const [isClaimPending, startClaimTransition] = React.useTransition();
+  const [isUsePending, startUseTransition] = React.useTransition();
 
   React.useEffect(() => {
     setCurrentStars(Math.max(0, Math.trunc(initialAvailableStars)));
@@ -360,6 +362,76 @@ export function ChildRewardsView({
 
   function openClaimDialog(reward: RewardCardModel): void {
     setPendingReward(reward);
+  }
+
+  function getSelectedUseQuantity(rewardId: string, availableCount: number): number {
+    const draft = quantityDraftByRewardId[rewardId];
+    if (typeof draft !== "number" || !Number.isFinite(draft)) {
+      return 1;
+    }
+    return clamp(Math.trunc(draft), 1, Math.max(1, availableCount));
+  }
+
+  function updateSelectedUseQuantity(rewardId: string, nextValue: number, availableCount: number): void {
+    setQuantityDraftByRewardId((current) => ({
+      ...current,
+      [rewardId]: clamp(Math.trunc(nextValue), 1, Math.max(1, availableCount)),
+    }));
+  }
+
+  function consumeRewardUnits(
+    reward: RewardCardModel,
+    availableCount: number,
+    requestedQuantity?: number,
+  ): void {
+    if (isUsePending || availableCount <= 0) {
+      return;
+    }
+
+    const quantity = clamp(
+      Math.trunc(requestedQuantity ?? getSelectedUseQuantity(reward.id, availableCount)),
+      1,
+      Math.max(1, availableCount),
+    );
+
+    startUseTransition(async () => {
+      const result = await consumeRewardAction({
+        rewardTierId: reward.id,
+        quantity,
+      });
+
+      if (!result.success || !result.data) {
+        toast.error(result.error ?? "Impossible d'utiliser cette recompense.");
+        return;
+      }
+
+      const actionData = result.data;
+      setRewardHistory((current) => {
+        const existing = current[actionData.rewardTierId];
+        if (actionData.remainingQuantity <= 0) {
+          const next = { ...current };
+          delete next[actionData.rewardTierId];
+          return next;
+        }
+        return {
+          ...current,
+          [actionData.rewardTierId]: {
+            count: actionData.remainingQuantity,
+            lastClaimedAt: existing?.lastClaimedAt ?? actionData.usedAt,
+          },
+        };
+      });
+
+      setQuantityDraftByRewardId((current) => {
+        const next = { ...current };
+        next[actionData.rewardTierId] = 1;
+        return next;
+      });
+
+      toast.success(
+        `${quantity} ${quantity > 1 ? "unites" : "unite"} utilisee${quantity > 1 ? "s" : ""} pour "${reward.title}".`,
+      );
+    });
   }
 
   function confirmClaimReward(): void {
@@ -546,7 +618,7 @@ export function ChildRewardsView({
 
                         {usageCount > 0 ? (
                           <p className="mt-2 text-center text-xs text-gray-600">
-                            Ã¢Å“â€¦ Deja utilisee {usageCount} fois
+                            Dans ton tresor: {usageCount}
                           </p>
                         ) : null}
                       </motion.article>
@@ -665,7 +737,8 @@ export function ChildRewardsView({
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {usedRewards.map((reward, index) => {
                     const usage = rewardHistory[reward.id];
-                    const count = usage?.count ?? 0;
+                    const count = Math.max(0, usage?.count ?? 0);
+                    const selectedQuantity = getSelectedUseQuantity(reward.id, count);
                     return (
                       <motion.article
                         key={reward.id}
@@ -679,15 +752,56 @@ export function ChildRewardsView({
                           <div className="mb-3 text-6xl">{reward.emoji}</div>
                           <h3 className="mb-2 text-xl font-extrabold text-gray-900">{reward.title}</h3>
                           <p className="mb-3 text-sm text-gray-700">
-                            {reward.description ?? "Tu l'as deja gagnee !"}
+                            {reward.description ?? "Dans ton tresor."}
                           </p>
                           <div className="mb-3 rounded-xl bg-white p-3 shadow-md">
-                            <p className="mb-1 text-sm text-gray-600">UtilisÃ©e</p>
+                            <p className="mb-1 text-sm text-gray-600">Disponible</p>
                             <p className="text-3xl font-extrabold text-purple-600">{count} fois</p>
                           </div>
                           <p className="text-xs text-gray-600">
-                            DerniÃ¨re fois : {formatUsageDate(usage?.lastClaimedAt ?? "")}
+                            Dernier achat : {formatUsageDate(usage?.lastClaimedAt ?? "")}
                           </p>
+
+                          <div className="mt-4 space-y-2 rounded-xl bg-white p-3 shadow-sm">
+                            <div className="flex items-center justify-center gap-2">
+                              <label htmlFor={`treasure-quantity-${reward.id}`} className="text-xs font-bold text-gray-600">
+                                Quantite
+                              </label>
+                              <input
+                                id={`treasure-quantity-${reward.id}`}
+                                type="number"
+                                min={1}
+                                max={Math.max(1, count)}
+                                value={selectedQuantity}
+                                onChange={(event) =>
+                                  updateSelectedUseQuantity(
+                                    reward.id,
+                                    Number(event.target.value || 1),
+                                    count,
+                                  )
+                                }
+                                className="h-8 w-20 rounded-md border border-gray-300 px-2 text-center text-sm font-bold text-gray-900 outline-none focus:border-purple-400"
+                                disabled={isUsePending}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                className="h-9 rounded-lg bg-white text-sm font-bold text-purple-700 ring-1 ring-purple-200 hover:bg-purple-50"
+                                onClick={() => consumeRewardUnits(reward, count, 1)}
+                                disabled={isUsePending || count <= 0}
+                              >
+                                Utiliser 1
+                              </Button>
+                              <Button
+                                className="h-9 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-sm font-bold text-white hover:from-purple-600 hover:to-indigo-700"
+                                onClick={() => consumeRewardUnits(reward, count)}
+                                disabled={isUsePending || count <= 0}
+                              >
+                                {isUsePending ? "Utilisation..." : "Utiliser"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </motion.article>
                     );
@@ -696,7 +810,7 @@ export function ChildRewardsView({
               ) : (
                 <div className="rounded-[26px] border-4 border-violet-200 bg-violet-50 p-6 text-center">
                   <p className="text-lg font-black text-violet-900">
-                    Ton historique apparaitra ici apres tes premiers echanges.
+                    Ton tresor apparaitra ici apres tes premiers echanges.
                   </p>
                 </div>
               )}
@@ -757,6 +871,7 @@ export function ChildRewardsView({
     </div>
   );
 }
+
 
 
 

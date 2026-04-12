@@ -62,11 +62,22 @@ interface DemoRewardClaimRecord {
   claimedAt: string;
 }
 
+interface DemoRewardConsumptionRecord {
+  id: string;
+  familyId: string;
+  childProfileId: string;
+  rewardTierId: string;
+  quantityUsed: number;
+  usedDate: string;
+  usedAt: string;
+}
+
 interface DemoGamificationStore {
   instances: DemoTaskInstanceRecord[];
   dailyPoints: DemoDailyPointsRecord[];
   rewardTiers: DemoRewardTierRecord[];
   rewardClaims: DemoRewardClaimRecord[];
+  rewardConsumptions: DemoRewardConsumptionRecord[];
 }
 
 type StoresByFamily = Record<string, DemoGamificationStore>;
@@ -134,6 +145,7 @@ function getStore(familyId: string): DemoGamificationStore {
       dailyPoints: [],
       rewardTiers: [],
       rewardClaims: [],
+      rewardConsumptions: [],
     };
     stores.set(familyId, store);
     persistStoresToDisk();
@@ -144,7 +156,27 @@ function getStore(familyId: string): DemoGamificationStore {
     persistStoresToDisk();
   }
 
+  if (!Array.isArray(store.rewardConsumptions)) {
+    store.rewardConsumptions = [];
+    persistStoresToDisk();
+  }
+
   return store;
+}
+
+function getDemoRewardAvailableCountForTier(
+  store: DemoGamificationStore,
+  childProfileId: string,
+  rewardTierId: string,
+): number {
+  const claimedCount = store.rewardClaims.filter(
+    (entry) => entry.childProfileId === childProfileId && entry.rewardTierId === rewardTierId,
+  ).length;
+  const consumedCount = store.rewardConsumptions
+    .filter((entry) => entry.childProfileId === childProfileId && entry.rewardTierId === rewardTierId)
+    .reduce((total, entry) => total + Math.max(0, Math.trunc(entry.quantityUsed)), 0);
+
+  return Math.max(0, claimedCount - consumedCount);
 }
 
 function getDemoAssignee(profileId: string | null | undefined): {
@@ -560,6 +592,17 @@ export function getDemoRewardClaimsSnapshot(
   const claims = [...store.rewardClaims]
     .filter((entry) => entry.childProfileId === childProfileId)
     .sort((left, right) => right.claimedAt.localeCompare(left.claimedAt));
+  const consumedByRewardTier = new Map<string, number>();
+  for (const consumption of store.rewardConsumptions) {
+    if (consumption.childProfileId !== childProfileId) {
+      continue;
+    }
+    consumedByRewardTier.set(
+      consumption.rewardTierId,
+      (consumedByRewardTier.get(consumption.rewardTierId) ?? 0) +
+        Math.max(0, Math.trunc(consumption.quantityUsed)),
+    );
+  }
 
   for (const claim of claims) {
     if (claim.claimDate === date) {
@@ -577,6 +620,17 @@ export function getDemoRewardClaimsSnapshot(
 
     historyByRewardTier[claim.rewardTierId] = {
       count: existing.count + 1,
+      lastClaimedAt: existing.lastClaimedAt,
+    };
+  }
+
+  for (const [rewardTierId, consumedCount] of consumedByRewardTier.entries()) {
+    const existing = historyByRewardTier[rewardTierId];
+    if (!existing) {
+      continue;
+    }
+    historyByRewardTier[rewardTierId] = {
+      count: Math.max(0, existing.count - consumedCount),
       lastClaimedAt: existing.lastClaimedAt,
     };
   }
@@ -603,6 +657,21 @@ export interface ClaimDemoRewardResult {
   spentToday: number;
   dailyPointsTotal: number;
   remainingStars: number;
+}
+
+export interface ConsumeDemoRewardInput {
+  familyId: string;
+  childProfileId: string;
+  rewardTierId: string;
+  quantity: number;
+  date: string;
+}
+
+export interface ConsumeDemoRewardResult {
+  rewardTierId: string;
+  quantityUsed: number;
+  remainingQuantity: number;
+  usedAt: string;
 }
 
 export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardResult | null {
@@ -639,15 +708,56 @@ export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardRes
   const usageCount = store.rewardClaims.filter(
     (entry) => entry.childProfileId === input.childProfileId && entry.rewardTierId === input.rewardTierId,
   ).length;
+  const consumedCount = store.rewardConsumptions
+    .filter((entry) => entry.childProfileId === input.childProfileId && entry.rewardTierId === input.rewardTierId)
+    .reduce((total, entry) => total + Math.max(0, Math.trunc(entry.quantityUsed)), 0);
+  const availableCount = Math.max(0, usageCount - consumedCount);
 
   return {
     rewardTierId: rewardTier.id,
     rewardLabel: rewardTier.label,
     pointsSpent,
     claimedAt,
-    usageCount,
+    usageCount: availableCount,
     spentToday: snapshot.spentToday + pointsSpent,
     dailyPointsTotal: balance.earnedStarsTotal,
     remainingStars: Math.max(0, availableStars - pointsSpent),
+  };
+}
+
+export function consumeDemoReward(input: ConsumeDemoRewardInput): ConsumeDemoRewardResult | null {
+  const store = getStore(input.familyId);
+  const rewardTier = store.rewardTiers.find((entry) => entry.id === input.rewardTierId);
+  if (!rewardTier) {
+    return null;
+  }
+
+  const quantity = Math.max(1, Math.trunc(input.quantity));
+  const availableBefore = getDemoRewardAvailableCountForTier(
+    store,
+    input.childProfileId,
+    input.rewardTierId,
+  );
+  if (quantity > availableBefore) {
+    return null;
+  }
+
+  const usedAt = new Date().toISOString();
+  store.rewardConsumptions.push({
+    id: randomUUID(),
+    familyId: input.familyId,
+    childProfileId: input.childProfileId,
+    rewardTierId: input.rewardTierId,
+    quantityUsed: quantity,
+    usedDate: input.date,
+    usedAt,
+  });
+  persistStoresToDisk();
+
+  return {
+    rewardTierId: input.rewardTierId,
+    quantityUsed: quantity,
+    remainingQuantity: Math.max(0, availableBefore - quantity),
+    usedAt,
   };
 }

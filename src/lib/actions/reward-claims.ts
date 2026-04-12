@@ -5,13 +5,18 @@ import { z } from "zod";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { getTodayDateKey } from "@/lib/day-templates/date";
 import type { ActionResult } from "@/lib/day-templates/types";
-import { claimDemoReward } from "@/lib/demo/gamification-store";
+import { claimDemoReward, consumeDemoReward } from "@/lib/demo/gamification-store";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseEnabled } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const claimRewardSchema = z.object({
   rewardTierId: z.string().uuid("Recompense invalide."),
+});
+
+const consumeRewardSchema = z.object({
+  rewardTierId: z.string().uuid("Recompense invalide."),
+  quantity: z.number().int().min(1, "Quantite invalide."),
 });
 
 export interface ClaimRewardActionResult {
@@ -23,6 +28,13 @@ export interface ClaimRewardActionResult {
   spentToday: number;
   dailyPointsTotal: number;
   remainingStars: number;
+}
+
+export interface ConsumeRewardActionResult {
+  rewardTierId: string;
+  quantityUsed: number;
+  remainingQuantity: number;
+  usedAt: string;
 }
 
 function revalidateRewardPaths(): void {
@@ -151,12 +163,29 @@ export async function claimRewardAction(
     return { success: false, error: "Impossible d'enregistrer cet echange." };
   }
 
-  const { count: usageCount } = await supabase
-    .from("reward_claims")
-    .select("*", { count: "exact", head: true })
-    .eq("family_id", context.familyId)
-    .eq("child_profile_id", context.profile.id)
-    .eq("reward_tier_id", rewardTier.id);
+  const [{ count: claimCount }, { data: consumptionRows, error: consumptionsError }] = await Promise.all([
+    supabase
+      .from("reward_claims")
+      .select("*", { count: "exact", head: true })
+      .eq("family_id", context.familyId)
+      .eq("child_profile_id", context.profile.id)
+      .eq("reward_tier_id", rewardTier.id),
+    supabase
+      .from("reward_consumptions")
+      .select("quantity_used")
+      .eq("family_id", context.familyId)
+      .eq("child_profile_id", context.profile.id)
+      .eq("reward_tier_id", rewardTier.id),
+  ]);
+
+  if (consumptionsError) {
+    return { success: false, error: "Recompense achetee, mais inventaire indisponible temporairement." };
+  }
+
+  const consumedCount = (consumptionRows ?? []).reduce((total, row) => {
+    return total + Math.max(0, Math.trunc(row.quantity_used ?? 0));
+  }, 0);
+  const availableCount = Math.max(0, (claimCount ?? 1) - consumedCount);
 
   const spentToday = spentTodayBefore + pointsRequired;
   const remainingStars = Math.max(0, remainingBefore - pointsRequired);
@@ -169,10 +198,124 @@ export async function claimRewardAction(
       rewardLabel: rewardTier.label,
       pointsSpent: pointsRequired,
       claimedAt: insertedClaim.claimed_at,
-      usageCount: Math.max(1, usageCount ?? 1),
+      usageCount: availableCount,
       spentToday,
       dailyPointsTotal,
       remainingStars,
+    },
+  };
+}
+
+export async function consumeRewardAction(
+  payload: unknown,
+): Promise<ActionResult<ConsumeRewardActionResult>> {
+  const parsed = consumeRewardSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Saisie invalide." };
+  }
+
+  const context = await getCurrentProfile();
+  if (!context.familyId || !context.profile?.id) {
+    return { success: false, error: "Session invalide." };
+  }
+
+  if (context.role !== "child") {
+    return { success: false, error: "Action reservee a l'enfant." };
+  }
+
+  const dateKey = getTodayDateKey();
+  const quantity = Math.max(1, Math.trunc(parsed.data.quantity));
+
+  if (!isSupabaseEnabled()) {
+    const consumed = consumeDemoReward({
+      familyId: context.familyId,
+      childProfileId: context.profile.id,
+      rewardTierId: parsed.data.rewardTierId,
+      quantity,
+      date: dateKey,
+    });
+
+    if (!consumed) {
+      return { success: false, error: "Quantite indisponible pour cette recompense." };
+    }
+
+    revalidateRewardPaths();
+    return {
+      success: true,
+      data: {
+        rewardTierId: consumed.rewardTierId,
+        quantityUsed: consumed.quantityUsed,
+        remainingQuantity: consumed.remainingQuantity,
+        usedAt: consumed.usedAt,
+      },
+    };
+  }
+
+  const useAdmin =
+    context.source === "child-pin" && context.role === "child" && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = useAdmin ? createSupabaseAdminClient() : await createSupabaseServerClient();
+
+  const { data: rewardTier, error: rewardTierError } = await supabase
+    .from("reward_tiers")
+    .select("id,family_id")
+    .eq("id", parsed.data.rewardTierId)
+    .maybeSingle();
+
+  if (rewardTierError || !rewardTier || rewardTier.family_id !== context.familyId) {
+    return { success: false, error: "Recompense introuvable." };
+  }
+
+  const [{ count: claimCount }, { data: consumptionRows, error: consumptionsError }] = await Promise.all([
+    supabase
+      .from("reward_claims")
+      .select("*", { count: "exact", head: true })
+      .eq("family_id", context.familyId)
+      .eq("child_profile_id", context.profile.id)
+      .eq("reward_tier_id", rewardTier.id),
+    supabase
+      .from("reward_consumptions")
+      .select("quantity_used")
+      .eq("family_id", context.familyId)
+      .eq("child_profile_id", context.profile.id)
+      .eq("reward_tier_id", rewardTier.id),
+  ]);
+
+  if (consumptionsError) {
+    return { success: false, error: "Impossible de verifier tes quantites." };
+  }
+
+  const consumedCount = (consumptionRows ?? []).reduce((total, row) => {
+    return total + Math.max(0, Math.trunc(row.quantity_used ?? 0));
+  }, 0);
+  const availableBefore = Math.max(0, (claimCount ?? 0) - consumedCount);
+  if (quantity > availableBefore) {
+    return { success: false, error: "Tu n'as pas assez de cette recompense." };
+  }
+
+  const { data: insertedConsumption, error: insertError } = await supabase
+    .from("reward_consumptions")
+    .insert({
+      family_id: context.familyId,
+      child_profile_id: context.profile.id,
+      reward_tier_id: rewardTier.id,
+      quantity_used: quantity,
+      used_date: dateKey,
+    })
+    .select("used_at")
+    .single();
+
+  if (insertError || !insertedConsumption) {
+    return { success: false, error: "Impossible d'utiliser cette recompense pour le moment." };
+  }
+
+  revalidateRewardPaths();
+  return {
+    success: true,
+    data: {
+      rewardTierId: rewardTier.id,
+      quantityUsed: quantity,
+      remainingQuantity: Math.max(0, availableBefore - quantity),
+      usedAt: insertedConsumption.used_at,
     },
   };
 }

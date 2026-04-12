@@ -14,6 +14,7 @@ import type { Database } from "@/types/database";
 type RewardTierRow = Database["public"]["Tables"]["reward_tiers"]["Row"];
 type DailyPointsRow = Database["public"]["Tables"]["daily_points"]["Row"];
 type RewardClaimRow = Database["public"]["Tables"]["reward_claims"]["Row"];
+type RewardConsumptionRow = Database["public"]["Tables"]["reward_consumptions"]["Row"];
 
 function shouldUseAdminClientForChildPin(
   context: Awaited<ReturnType<typeof getCurrentProfile>>,
@@ -88,21 +89,38 @@ export async function getRewardClaimsSnapshotForChild(
   }
 
   const supabase = await getSupabaseClientForContext(context);
-  const { data, error } = await supabase
-    .from("reward_claims")
-    .select("*")
-    .eq("family_id", context.familyId)
-    .eq("child_profile_id", childProfileId)
-    .order("claimed_at", { ascending: false });
+  const [{ data: claimRows, error: claimsError }, { data: consumptionRows, error: consumptionsError }] =
+    await Promise.all([
+      supabase
+        .from("reward_claims")
+        .select("*")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", childProfileId)
+        .order("claimed_at", { ascending: false }),
+      supabase
+        .from("reward_consumptions")
+        .select("*")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", childProfileId),
+    ]);
 
-  if (error || !data) {
+  if (claimsError || consumptionsError || !claimRows) {
     return emptySnapshot;
   }
 
   const historyByRewardTier: RewardClaimsSnapshot["historyByRewardTier"] = {};
   let spentToday = 0;
+  const consumedByRewardTier = new Map<string, number>();
 
-  for (const claim of data as RewardClaimRow[]) {
+  for (const consumption of (consumptionRows ?? []) as RewardConsumptionRow[]) {
+    consumedByRewardTier.set(
+      consumption.reward_tier_id,
+      (consumedByRewardTier.get(consumption.reward_tier_id) ?? 0) +
+        Math.max(0, Math.trunc(consumption.quantity_used)),
+    );
+  }
+
+  for (const claim of claimRows as RewardClaimRow[]) {
     if (claim.claim_date === dateKey) {
       spentToday += Math.max(0, Math.trunc(claim.points_spent));
     }
@@ -118,6 +136,17 @@ export async function getRewardClaimsSnapshotForChild(
 
     historyByRewardTier[claim.reward_tier_id] = {
       count: existing.count + 1,
+      lastClaimedAt: existing.lastClaimedAt,
+    };
+  }
+
+  for (const [rewardTierId, consumedCount] of consumedByRewardTier.entries()) {
+    const existing = historyByRewardTier[rewardTierId];
+    if (!existing) {
+      continue;
+    }
+    historyByRewardTier[rewardTierId] = {
+      count: Math.max(0, existing.count - consumedCount),
       lastClaimedAt: existing.lastClaimedAt,
     };
   }

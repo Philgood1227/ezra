@@ -1921,6 +1921,58 @@ export type Database = {
           },
         ];
       };
+      reward_consumptions: {
+        Row: {
+          child_profile_id: string;
+          family_id: string;
+          id: string;
+          quantity_used: number;
+          reward_tier_id: string;
+          used_at: string;
+          used_date: string;
+        };
+        Insert: {
+          child_profile_id: string;
+          family_id: string;
+          id?: string;
+          quantity_used: number;
+          reward_tier_id: string;
+          used_at?: string;
+          used_date?: string;
+        };
+        Update: {
+          child_profile_id?: string;
+          family_id?: string;
+          id?: string;
+          quantity_used?: number;
+          reward_tier_id?: string;
+          used_at?: string;
+          used_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reward_consumptions_child_profile_id_fkey";
+            columns: ["child_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reward_consumptions_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reward_consumptions_reward_tier_id_fkey";
+            columns: ["reward_tier_id"];
+            isOneToOne: false;
+            referencedRelation: "reward_tiers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reward_claims: {
         Row: {
           claim_date: string;
