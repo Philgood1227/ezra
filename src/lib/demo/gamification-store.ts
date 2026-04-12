@@ -513,6 +513,41 @@ export interface DemoRewardClaimsSnapshot {
   >;
 }
 
+export interface DemoRewardStarsBalance {
+  earnedStarsTotal: number;
+  spentStarsTotal: number;
+  availableStars: number;
+}
+
+export function getDemoRewardStarsBalance(
+  familyId: string,
+  childProfileId: string,
+): DemoRewardStarsBalance {
+  const store = getStore(familyId);
+  const earnedStarsTotal = store.dailyPoints
+    .filter((entry) => entry.childProfileId === childProfileId)
+    .reduce((total, entry) => total + Math.max(0, Math.trunc(entry.pointsTotal)), 0);
+  const spentStarsTotal = store.rewardClaims
+    .filter((entry) => entry.childProfileId === childProfileId)
+    .reduce((total, entry) => total + Math.max(0, Math.trunc(entry.pointsSpent)), 0);
+
+  return {
+    earnedStarsTotal,
+    spentStarsTotal,
+    availableStars: Math.max(0, earnedStarsTotal - spentStarsTotal),
+  };
+}
+
+export function creditDemoRewardStars(
+  familyId: string,
+  childProfileId: string,
+  date: string,
+  starsToAdd: number,
+): DemoRewardStarsBalance {
+  incrementDemoDailyPoints(familyId, childProfileId, date, starsToAdd);
+  return getDemoRewardStarsBalance(familyId, childProfileId);
+}
+
 export function getDemoRewardClaimsSnapshot(
   familyId: string,
   childProfileId: string,
@@ -567,6 +602,7 @@ export interface ClaimDemoRewardResult {
   usageCount: number;
   spentToday: number;
   dailyPointsTotal: number;
+  remainingStars: number;
 }
 
 export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardResult | null {
@@ -576,9 +612,10 @@ export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardRes
     return null;
   }
 
-  const dailyPoints = getOrCreateDemoDailyPoints(input.familyId, input.childProfileId, input.date);
+  getOrCreateDemoDailyPoints(input.familyId, input.childProfileId, input.date);
   const snapshot = getDemoRewardClaimsSnapshot(input.familyId, input.childProfileId, input.date);
-  const availableStars = Math.max(0, dailyPoints.pointsTotal - snapshot.spentToday);
+  const balance = getDemoRewardStarsBalance(input.familyId, input.childProfileId);
+  const availableStars = balance.availableStars;
 
   if (rewardTier.pointsRequired > availableStars) {
     return null;
@@ -610,6 +647,7 @@ export function claimDemoReward(input: ClaimDemoRewardInput): ClaimDemoRewardRes
     claimedAt,
     usageCount,
     spentToday: snapshot.spentToday + pointsSpent,
-    dailyPointsTotal: dailyPoints.pointsTotal,
+    dailyPointsTotal: balance.earnedStarsTotal,
+    remainingStars: Math.max(0, availableStars - pointsSpent),
   };
 }

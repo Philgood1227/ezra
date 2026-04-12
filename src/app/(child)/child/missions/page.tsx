@@ -1,8 +1,8 @@
 import { ChildRewardsView } from "@/components/child/rewards/child-rewards-view";
 import {
   getRewardClaimsSnapshotForChild,
+  getRewardStarsBalanceForChild,
   getRewardTiersForCurrentFamily,
-  getTodayDailyPointsForChild,
 } from "@/lib/api/rewards";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 
@@ -31,19 +31,18 @@ export default async function ChildRewardsPage(): Promise<React.JSX.Element> {
   const childProfileId = context.profile?.id ?? "";
   const dateKey = getTodayDateKey();
 
-  const [rewardTiers, dailyPoints, rewardClaimsSnapshot] = childProfileId
+  const [rewardTiers, starsBalance, rewardClaimsSnapshot] = childProfileId
     ? await Promise.all([
         getRewardTiersForCurrentFamily(),
-        getTodayDailyPointsForChild(childProfileId),
+        getRewardStarsBalanceForChild(childProfileId),
         getRewardClaimsSnapshotForChild(childProfileId, dateKey),
       ])
-    : [[], null, { spentToday: 0, historyByRewardTier: {} }];
+    : [[], { earnedStarsTotal: 0, spentStarsTotal: 0, availableStars: 0 }, { spentToday: 0, historyByRewardTier: {} }];
 
   return (
     <ChildRewardsView
       childName={getFirstName(context.profile?.display_name)}
-      initialStars={dailyPoints?.pointsTotal ?? 0}
-      initialSpentToday={rewardClaimsSnapshot.spentToday}
+      initialAvailableStars={starsBalance.availableStars}
       initialRewardHistory={rewardClaimsSnapshot.historyByRewardTier}
       rewardTiers={rewardTiers}
     />

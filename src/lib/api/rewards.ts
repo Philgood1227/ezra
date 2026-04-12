@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import {
+  getDemoRewardStarsBalance,
   getDemoRewardClaimsSnapshot,
   getOrCreateDemoDailyPoints,
   listDemoRewardTiers,
@@ -183,6 +184,65 @@ export async function getTodayDailyPointsForChild(childProfileId: string): Promi
   }
 
   return mapDailyPoints(data as DailyPointsRow);
+}
+
+export interface RewardStarsBalance {
+  earnedStarsTotal: number;
+  spentStarsTotal: number;
+  availableStars: number;
+}
+
+export async function getRewardStarsBalanceForChild(childProfileId: string): Promise<RewardStarsBalance> {
+  const emptyBalance: RewardStarsBalance = {
+    earnedStarsTotal: 0,
+    spentStarsTotal: 0,
+    availableStars: 0,
+  };
+
+  if (!childProfileId) {
+    return emptyBalance;
+  }
+
+  const context = await getCurrentProfile();
+  if (!context.familyId) {
+    return emptyBalance;
+  }
+
+  if (!isSupabaseEnabled()) {
+    return getDemoRewardStarsBalance(context.familyId, childProfileId);
+  }
+
+  const supabase = await getSupabaseClientForContext(context);
+  const [{ data: dailyRows, error: dailyError }, { data: claimRows, error: claimsError }] =
+    await Promise.all([
+      supabase
+        .from("daily_points")
+        .select("points_total")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", childProfileId),
+      supabase
+        .from("reward_claims")
+        .select("points_spent")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", childProfileId),
+    ]);
+
+  if (dailyError || claimsError) {
+    return emptyBalance;
+  }
+
+  const earnedStarsTotal = (dailyRows ?? []).reduce((total, row) => {
+    return total + Math.max(0, Math.trunc(row.points_total ?? 0));
+  }, 0);
+  const spentStarsTotal = (claimRows ?? []).reduce((total, row) => {
+    return total + Math.max(0, Math.trunc(row.points_spent ?? 0));
+  }, 0);
+
+  return {
+    earnedStarsTotal,
+    spentStarsTotal,
+    availableStars: Math.max(0, earnedStarsTotal - spentStarsTotal),
+  };
 }
 
 export interface ParentTodayPointsOverview {

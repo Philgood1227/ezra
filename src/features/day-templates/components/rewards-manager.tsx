@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ds";
 import { ParentFeedbackBanner } from "@/components/feedback/parent-feedback-banner";
 import {
+  creditChildStarsAction,
   createRewardTierAction,
   deleteRewardTierAction,
   updateRewardTierAction,
@@ -14,6 +15,11 @@ import type { RewardTierInput, RewardTierSummary } from "@/lib/day-templates/typ
 
 interface RewardsManagerProps {
   rewardTiers: RewardTierSummary[];
+  childRewardWallet?: {
+    childProfileId: string;
+    childDisplayName: string;
+    availableStars: number;
+  } | null;
 }
 
 type RewardCategoryKey = "privilege" | "screen" | "activity" | "surprise";
@@ -368,7 +374,7 @@ function getCategoryTitle(category: RewardCategoryKey): string {
   return "Privilege";
 }
 
-export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.Element {
+export function RewardsManager({ rewardTiers, childRewardWallet = null }: RewardsManagerProps): React.JSX.Element {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -379,6 +385,7 @@ export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.
     emoji: getDefaultEmojiForCategory(DEFAULT_REWARD_CATEGORY.key),
     unlocked: true,
   });
+  const [starsToCredit, setStarsToCredit] = useState("1");
   const [unlockedOverrides, setUnlockedOverrides] = useState<Record<string, boolean>>({});
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
 
@@ -600,6 +607,40 @@ export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.
     Number.isFinite(draft.pointsRequired) &&
     draft.pointsRequired >= 1;
 
+  function submitManualCredit(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    if (!childRewardWallet) {
+      return;
+    }
+
+    const parsedValue = Number(starsToCredit);
+    const starsToAdd = Math.max(1, Math.trunc(parsedValue));
+    if (!Number.isFinite(parsedValue) || starsToAdd < 1) {
+      setFeedback({ tone: "error", message: "Veuillez saisir un nombre d'etoiles valide (minimum 1)." });
+      return;
+    }
+
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await creditChildStarsAction({
+        childProfileId: childRewardWallet.childProfileId,
+        starsToAdd,
+      });
+
+      if (!result.success || !result.data) {
+        setFeedback({ tone: "error", message: result.error ?? "Impossible de crediter les etoiles." });
+        return;
+      }
+
+      setFeedback({
+        tone: "success",
+        message: `${starsToAdd} etoile${starsToAdd > 1 ? "s" : ""} ajoutee${starsToAdd > 1 ? "s" : ""}. Nouveau solde: ${result.data.availableStars} etoiles.`,
+      });
+      setStarsToCredit("1");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -650,6 +691,45 @@ export function RewardsManager({ rewardTiers }: RewardsManagerProps): React.JSX.
           <p className="text-sm text-gray-600">Plus populaire</p>
         </div>
       </div>
+
+      {childRewardWallet ? (
+        <section className="mb-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900">Crediter des etoiles</h2>
+              <p className="text-sm text-gray-700">
+                Solde actuel de {childRewardWallet.childDisplayName}:{" "}
+                <span className="font-extrabold text-amber-700">{childRewardWallet.availableStars} etoiles</span>
+              </p>
+            </div>
+
+            <form onSubmit={submitManualCredit} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+              <div className="sm:w-40">
+                <label htmlFor="manual-stars" className="mb-1 block text-xs font-semibold text-gray-700">
+                  Etoiles a ajouter
+                </label>
+                <input
+                  id="manual-stars"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={starsToCredit}
+                  onChange={(event) => setStarsToCredit(event.target.value)}
+                  className="h-9 w-full rounded-md border border-black/10 bg-white px-3 py-1 text-sm text-[#030213] outline-none transition-[color,box-shadow] focus-visible:border-[color:var(--ring)] focus-visible:ring-[3px] focus-visible:ring-black/10"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-amber-600 hover:to-orange-700 disabled:pointer-events-none disabled:opacity-50"
+                disabled={isPending}
+              >
+                <StarIcon className="h-4 w-4 fill-white text-white" />
+                Crediter
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       <div className="mb-6">
         <button

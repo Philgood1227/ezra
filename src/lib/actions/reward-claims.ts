@@ -28,6 +28,8 @@ export interface ClaimRewardActionResult {
 function revalidateRewardPaths(): void {
   revalidatePath("/child");
   revalidatePath("/child/missions");
+  revalidatePath("/parent/rewards");
+  revalidatePath("/parent-v2/rewards");
   revalidatePath("/parent/dashboard");
 }
 
@@ -73,7 +75,7 @@ export async function claimRewardAction(
         usageCount: claimed.usageCount,
         spentToday: claimed.spentToday,
         dailyPointsTotal: claimed.dailyPointsTotal,
-        remainingStars: Math.max(0, claimed.dailyPointsTotal - claimed.spentToday),
+        remainingStars: claimed.remainingStars,
       },
     };
   }
@@ -92,33 +94,43 @@ export async function claimRewardAction(
     return { success: false, error: "Recompense introuvable." };
   }
 
-  const { data: dailyPoints } = await supabase
-    .from("daily_points")
-    .select("points_total")
-    .eq("family_id", context.familyId)
-    .eq("child_profile_id", context.profile.id)
-    .eq("date", dateKey)
-    .maybeSingle();
+  const [{ data: dailyPointsRows, error: dailyPointsError }, { data: claimRows, error: claimsError }] =
+    await Promise.all([
+      supabase
+        .from("daily_points")
+        .select("points_total")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", context.profile.id),
+      supabase
+        .from("reward_claims")
+        .select("points_spent,claim_date")
+        .eq("family_id", context.familyId)
+        .eq("child_profile_id", context.profile.id),
+    ]);
 
-  const dailyPointsTotal = Math.max(0, Math.trunc(dailyPoints?.points_total ?? 0));
+  if (dailyPointsError) {
+    return { success: false, error: "Impossible de verifier tes etoiles." };
+  }
 
-  const { data: todayClaims, error: todayClaimsError } = await supabase
-    .from("reward_claims")
-    .select("points_spent")
-    .eq("family_id", context.familyId)
-    .eq("child_profile_id", context.profile.id)
-    .eq("claim_date", dateKey);
-
-  if (todayClaimsError) {
+  if (claimsError) {
     return { success: false, error: "Impossible de verifier tes echanges." };
   }
 
-  const spentTodayBefore = (todayClaims ?? []).reduce((total, claim) => {
+  const dailyPointsTotal = (dailyPointsRows ?? []).reduce((total, row) => {
+    return total + Math.max(0, Math.trunc(row.points_total ?? 0));
+  }, 0);
+  const spentAllTimeBefore = (claimRows ?? []).reduce((total, claim) => {
+    return total + Math.max(0, Math.trunc(claim.points_spent ?? 0));
+  }, 0);
+  const spentTodayBefore = (claimRows ?? []).reduce((total, claim) => {
+    if (claim.claim_date !== dateKey) {
+      return total;
+    }
     return total + Math.max(0, Math.trunc(claim.points_spent ?? 0));
   }, 0);
 
   const pointsRequired = Math.max(0, Math.trunc(rewardTier.points_required));
-  const remainingBefore = Math.max(0, dailyPointsTotal - spentTodayBefore);
+  const remainingBefore = Math.max(0, dailyPointsTotal - spentAllTimeBefore);
   if (pointsRequired > remainingBefore) {
     return { success: false, error: "Pas assez d'etoiles pour cette recompense." };
   }
@@ -147,6 +159,7 @@ export async function claimRewardAction(
     .eq("reward_tier_id", rewardTier.id);
 
   const spentToday = spentTodayBefore + pointsRequired;
+  const remainingStars = Math.max(0, remainingBefore - pointsRequired);
 
   revalidateRewardPaths();
   return {
@@ -159,7 +172,7 @@ export async function claimRewardAction(
       usageCount: Math.max(1, usageCount ?? 1),
       spentToday,
       dailyPointsTotal,
-      remainingStars: Math.max(0, dailyPointsTotal - spentToday),
+      remainingStars,
     },
   };
 }
